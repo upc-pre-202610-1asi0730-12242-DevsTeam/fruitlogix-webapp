@@ -1,0 +1,470 @@
+{
+  "orders": [
+    {
+      "id": "#ORD-2024-001",
+      "clientName": "FreshRoots Global",
+      "commercialClientId": "",
+      "selectedFruits": [
+        {
+          "id": 1,
+          "name": "Manzana Fuji",
+          "quantity": 10000
+        },
+        {
+          "id": 2,
+          "name": "Pera Williams",
+          "quantity": 5000
+        }
+      ],
+      "fruitType": "",
+      "quantity": "15,000 kg",
+      "status": "Cancelado",
+      "statusClass": "status-cancelled",
+      "producer": "Finca La Esperanza",
+      "producerId": "p3",
+      "product": "Manzana Fuji",
+      "volume": "15.0 Tons",
+      "totalVolume": 0,
+      "totalAmount": 34887.10864212501,
+      "deliveryDueDate": null,
+      "cancelledAt": "2026-05-12T05:23:21.725Z"
+    },
+    {
+      "id": "#ORD-2024-002",
+      "clientName": "Orchard Connect",
+      "commercialClientId": "",
+      "selectedFruits": [
+        {
+          "id": 3,
+          "name": "Arándano Azul",
+          "quantity": 4200
+        }
+      ],
+      "fruitType": "",
+      "quantity": "4,200 kg",
+      "status": "Cancelado",
+      "statusClass": "status-cancelled",
+      "producer": "AgroExport del Sur",
+      "producerId": null,
+      "product": "Arándano Azul",
+      "volume": "4.2 Tons",
+      "totalVolume": 0,
+      "totalAmount": 12600,
+      "deliveryDueDate": null,
+      "cancelledAt": "2026-05-11T22:29:47.317Z"
+    },
+    {
+      "id": "#ORD-2024-003",
+      "clientName": "Valle Limpio",
+      "commercialClientId": "",
+      "selectedFruits": [
+        {
+          "id": 4,
+          "name": "Pera Williams",
+          "quantity": 8800
+        }
+      ],
+      "fruitType": "",
+      "quantity": "8,800 kg",
+      "status": "Asignado",
+      "statusClass": "status-assigned",
+      "producer": "Hacienda Victoria",
+      "producerId": "p2",
+      "product": "Pera Williams",
+      "volume": "8.8 Tons",
+      "totalVolume": 0,
+      "totalAmount": 18667.85,
+      "deliveryDueDate": null,
+      "cancelledAt": null
+    },
+    {
+      "id": "#ORD-2024-004",
+      "clientName": "AgroMundo SA",
+      "commercialClientId": "",
+      "selectedFruits": [
+        {
+          "id": 5,
+          "name": "Cereza Export",
+          "quantity": 2500
+        }
+      ],
+      "fruitType": "",
+      "quantity": "2,500 kg",
+      "status": "Asignado",
+      "statusClass": "status-assigned",
+      "producer": "Finca La Esperanza",
+      "producerId": "p2",
+      "product": "Cereza Export",
+      "volume": "2.5 Tons",
+      "totalVolume": 0,
+      "totalAmount": 8062.85,
+      "deliveryDueDate": null
+    },
+    {
+      "id": "#ORD-2024-005",
+      "clientName": "EcoExport",
+      "selectedFruits": [
+        {
+          "id": 6,
+          "name": "Uva Thompson",
+          "quantity": 22400
+        }
+      ],
+      "quantity": "22,400 kg",
+      "status": "Entregado",
+      "statusClass": "status-delivered-solid",
+      "producer": "AgroExport del Sur",
+      "product": "Uva Thompson",
+      "volume": "22.4 Tons",
+      "totalAmount": 44800
+    }
+  ],
+  "fruits": [
+    {
+      "id": 1,
+      "name": "Manzana Fuji"
+    },
+    {
+      "id": 2,
+      "name": "Pera Williams"
+    },
+    {
+      "id": 3,
+      "name": "Arándano Azul"
+    },
+    {
+      "id": 4,
+      "name": "Cereza Export"
+    },
+    {
+      "id": 5,
+      "name": "Uva Thompson"
+    },
+    {
+      "id": 6,
+      "name": "Aguacate Hass"
+    },
+    {
+      "id": 7,
+      "name": "Mango Ataulfo"
+    },
+    {
+      "id": 8,
+      "name": "Limón Persa"
+    }
+  ],
+  "producers": [
+    {
+      "producerType": "EMPRESA",
+      "fullName": "Juan",
+      "taxId": "20512345671",
+      "legalName": "Finca La Esperanza SAC",
+      "email": "carlos@fincalaesperanza.pe",
+      "phone": "+51 987 654 321",
+      "country": "Perú",
+      "region": "Lima",
+      "city": "Lurín",
+      "address": "Av. Lima Sur Km. 28",
+      "crop": "Palta Hass",
+      "cultivatedHectares": 25.5,
+      "monthlyProduction": "12,000",
+      "operationsStartDate": "2018-03-15",
+      "rating": 5,
+      "certifications": "GlobalG.A.P, HACCP",
+      "id": 1,
+      "photo": ""
+    },
+    {
+      "producerType": "EMPRESA",
+      "fullName": "Holaaa",
+      "taxId": "12345678999",
+      "legalName": "Sergio",
+      "email": "hola@gmail.com",
+      "phone": "954695496",
+      "country": "Perú",
+      "region": "Lima",
+      "city": "AA",
+      "address": "A243",
+      "crop": "Palta",
+      "cultivatedHectares": 4324,
+      "monthlyProduction": "4234",
+      "operationsStartDate": "2026-05-25T05:00:00.000Z",
+      "rating": 3,
+      "certifications": "44",
+      "id": 2
+    }
+  ],
+  "clients": [
+    {
+      "id": 1,
+      "name": "FreshRoots Global"
+    },
+    {
+      "id": 2,
+      "name": "Orchard Connect"
+    },
+    {
+      "id": 3,
+      "name": "Valle Limpio"
+    },
+    {
+      "id": 4,
+      "name": "AgroMundo SA"
+    },
+    {
+      "id": 5,
+      "name": "EcoExport"
+    }
+  ],
+  "dashboard": {
+    "weeklyVolume": [
+      45,
+      70,
+      60,
+      90,
+      85,
+      40,
+      20
+    ],
+    "orderStatusStats": {
+      "delivered": 754,
+      "inTransit": 128,
+      "pending": 42
+    },
+    "activeOrders": 1482,
+    "productQuality": 98.4,
+    "etaAverage": 42
+  },
+  "deliveries": [
+    {
+      "id": "del-001",
+      "orderId": "#ORD-2024-001",
+      "assignedDriver": "Roberto Gómez",
+      "vehiclePlate": "ABC-123",
+      "estimatedTimeOfArrival": "2026-05-12T10:30:00Z",
+      "status": "IN_TRANSIT"
+    },
+    {
+      "id": "del-002",
+      "orderId": "#ORD-2024-004",
+      "assignedDriver": "Elena Rivas",
+      "vehiclePlate": "XYZ-789",
+      "estimatedTimeOfArrival": "2026-05-12T14:45:00Z",
+      "status": "DELAYED"
+    },
+    {
+      "id": "del-003",
+      "orderId": "#ORD-2024-003",
+      "assignedDriver": "Mario Casas",
+      "vehiclePlate": "DEF-456",
+      "estimatedTimeOfArrival": "2026-05-12T12:00:00.000Z",
+      "status": "DELAYED"
+    }
+  ],
+  "tracking-logs": [
+    {
+      "id": "log-001",
+      "deliveryId": "del-001",
+      "timestamp": "2026-05-11T20:00:00Z",
+      "location": "-12.046374, -77.042793",
+      "temperature": 4.5,
+      "humidity": 82
+    }
+  ],
+  "devices": [
+    {
+      "id": "dev-001",
+      "deviceType": "TEMPERATURE_SENSOR",
+      "location": "Contenedor 4029 - Zona A",
+      "status": "ACTIVE",
+      "lastReading": "2026-05-11T20:30:00Z"
+    },
+    {
+      "id": "dev-002",
+      "deviceType": "HUMIDITY_SENSOR",
+      "location": "Contenedor 4029 - Zona B",
+      "status": "ACTIVE",
+      "lastReading": "2026-05-11T20:30:00.000Z"
+    },
+    {
+      "id": "dev-003",
+      "deviceType": "GPS_TRACKER",
+      "location": "Camión ABC-123",
+      "status": "ACTIVE",
+      "lastReading": "2026-05-11T20:45:00.000Z"
+    },
+    {
+      "id": "dev-004",
+      "deviceType": "WEIGHT_SCALE",
+      "location": "Muelle 4 - Despacho",
+      "status": "ACTIVE",
+      "lastReading": "2026-05-11T12:00:00.000Z"
+    }
+  ],
+  "sensor-readings": [
+    {
+      "id": "read-001",
+      "deviceId": "dev-001",
+      "timestamp": "2026-05-11T20:30:00Z",
+      "value": 4.2,
+      "unit": "°C"
+    },
+    {
+      "id": "read-002",
+      "deviceId": "dev-002",
+      "timestamp": "2026-05-11T20:30:00Z",
+      "value": 85,
+      "unit": "%"
+    },
+    {
+      "id": "read-003",
+      "deviceId": "dev-003",
+      "timestamp": "2026-05-11T20:45:00Z",
+      "value": 82,
+      "unit": "km/h"
+    }
+  ],
+  "alert-rules": [
+    {
+      "id": "rule-001",
+      "deviceType": "TEMPERATURE_SENSOR",
+      "minThreshold": 0,
+      "maxThreshold": 5,
+      "alertMessage": "ALERTA: Temperatura fuera de rango (0°C - 5°C)"
+    },
+    {
+      "id": "rule-002",
+      "deviceType": "HUMIDITY_SENSOR",
+      "minThreshold": 60,
+      "maxThreshold": 90,
+      "alertMessage": "ALERTA: Humedad fuera de rango (60% - 90%)"
+    }
+  ],
+  "invoices": [
+    {
+      "id": "INV-88291",
+      "orderRef": "ORD-990-21",
+      "issueDate": "Oct 24, 2023",
+      "totalAmount": 3420,
+      "status": "PAID"
+    },
+    {
+      "id": "INV-88295",
+      "orderRef": "ORD-992-45",
+      "issueDate": "Oct 26, 2023",
+      "totalAmount": 1250.5,
+      "status": "PENDING"
+    },
+    {
+      "id": "INV-88301",
+      "orderRef": "ORD-995-12",
+      "issueDate": "Oct 27, 2023",
+      "totalAmount": 4800,
+      "status": "FAILED"
+    },
+    {
+      "id": "INV-88304",
+      "orderRef": "ORD-998-09",
+      "issueDate": "Oct 28, 2023",
+      "totalAmount": 550,
+      "status": "REFUNDED"
+    },
+    {
+      "id": "INV-88310",
+      "orderRef": "ORD-001-33",
+      "issueDate": "Oct 30, 2023",
+      "totalAmount": 12000,
+      "status": "PAID"
+    }
+  ],
+  "payment-transactions": [
+    {
+      "amount": 603.57,
+      "timestamp": "2026-05-12T05:10:04.715Z",
+      "method": "CREDIT_CARD",
+      "gatewayRef": "EXT-REF-9900-LIME",
+      "status": "PAID",
+      "details": {
+        "cardEnding": "4429"
+      },
+      "id": 1
+    },
+    {
+      "amount": 603.57,
+      "timestamp": "2026-05-12T05:10:25.422Z",
+      "method": "CREDIT_CARD",
+      "gatewayRef": "EXT-REF-9900-LIME",
+      "status": "PAID",
+      "details": {
+        "cardEnding": "4429"
+      },
+      "id": 2
+    },
+    {
+      "amount": 603.57,
+      "timestamp": "2026-05-12T05:10:43.081Z",
+      "method": "CREDIT_CARD",
+      "gatewayRef": "EXT-REF-9900-LIME",
+      "status": "PAID",
+      "details": {
+        "cardEnding": "4429"
+      },
+      "id": 3
+    },
+    {
+      "amount": 603.57,
+      "timestamp": "2026-05-12T05:10:55.086Z",
+      "method": "CREDIT_CARD",
+      "gatewayRef": "EXT-REF-9900-LIME",
+      "status": "PAID",
+      "details": {
+        "cardEnding": "4429"
+      },
+      "id": 4
+    },
+    {
+      "amount": 603.57,
+      "timestamp": "2026-05-12T05:11:39.638Z",
+      "method": "CREDIT_CARD",
+      "gatewayRef": "EXT-REF-9900-LIME",
+      "status": "PAID",
+      "details": {
+        "cardEnding": "4429"
+      },
+      "id": 5
+    },
+    {
+      "amount": 603.57,
+      "timestamp": "2026-05-12T05:14:19.473Z",
+      "method": "CREDIT_CARD",
+      "gatewayRef": "EXT-REF-9900-LIME",
+      "status": "PAID",
+      "details": {
+        "cardEnding": "4429"
+      },
+      "id": 6
+    },
+    {
+      "amount": 603.57,
+      "timestamp": "2026-05-12T05:17:14.445Z",
+      "method": "CREDIT_CARD",
+      "gatewayRef": "EXT-REF-9900-LIME",
+      "status": "PAID",
+      "details": {
+        "cardEnding": "4429"
+      },
+      "id": 7
+    },
+    {
+      "amount": 603.57,
+      "timestamp": "2026-05-12T05:24:24.717Z",
+      "method": "CREDIT_CARD",
+      "gatewayRef": "EXT-REF-9900-LIME",
+      "status": "PAID",
+      "details": {
+        "cardEnding": "4429"
+      },
+      "id": 8
+    }
+  ]
+}
