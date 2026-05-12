@@ -1,0 +1,135 @@
+﻿{
+  "app": {
+    "title": "FruitLogix",
+    "subtitle": "Welcome back to the FruitLogix Distribution Center.",
+    "role": {
+      "distributor": "Distributor"
+    }
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "orders": "Orders",
+    "profiles": "Profiles",
+    "quality": "Quality",
+    "logistics": "Logistics",
+    "payments": "Payments",
+    "iot": "IoT",
+    "help": "Help",
+    "logout": "Sign Out"
+  },
+  "pages": {
+    "dashboard": "Dashboard",
+    "order-management": "Order Management",
+    "profiles-and-vehicles": "Profiles & Vehicles",
+    "quality-control": "Quality Control",
+    "logistics-monitoring": "Logistics & Monitoring",
+    "payment-management": "Payment Management",
+    "iot-infrastructure": "IoT Infrastructure",
+    "not-found": "Page Not Found"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "edit": "Edit",
+    "delete": "Delete",
+    "search": "Search",
+    "loading": "Loading...",
+    "view_all": "View all",
+    "close": "Close"
+  },
+  "dashboard": {
+    "active_orders": "ACTIVE ORDERS",
+    "product_quality": "PRODUCT QUALITY",
+    "optimal": "Optimal",
+    "quality_note": "Based on last 200 batches",
+    "eta_average": "AVERAGE ETA",
+    "daily_deliveries": "DAILY DELIVERIES",
+    "weekly_volume": "Weekly Distribution Volume",
+    "weekly_volume_note": "Total tonnage per operating day",
+    "status_title": "Order Status",
+    "status_note": "Current compliance ratio",
+    "complied": "COMPLIED",
+    "delivered": "Delivered",
+    "in_transit": "In Transit",
+    "pending": "Pending",
+    "recent_orders": "Recent Orders",
+    "table": {
+      "order_id": "ORDER ID",
+      "producer": "PRODUCER",
+      "product": "PRODUCT",
+      "volume": "VOLUME",
+      "status": "STATUS",
+      "action": "ACTION"
+    }
+  },
+  "orders": {
+    "breadcrumb": {
+      "home": "Home",
+      "orders": "Orders",
+      "create": "Create order"
+    },
+    "title": "Order Management",
+    "subtitle": "Real-time oversight of global supply chains and order flows.",
+    "search_placeholder": "Search by ID, order, client or fruit",
+    "stats": {
+      "total_active": "TOTAL ACTIVE",
+      "in_transit": "IN TRANSIT"
+    },
+    "table": {
+      "id": "ORDER ID",
+      "client": "CLIENT",
+      "fruit": "FRUIT",
+      "quantity": "QUANTITY",
+      "status": "STATUS",
+      "actions": "ACTIONS",
+      "showing": "SHOWING {first}-{last} OF {totalRecords} ORDERS",
+      "empty": "No order records found.",
+      "empty_subtitle": "Check search filters or register a new one."
+    },
+    "actions": {
+      "assign": "ASSIGN",
+      "edit": "Edit",
+      "delete": "Delete",
+      "view_tracking": "View order tracking",
+      "restricted_edit": "Cannot edit a delivered or cancelled order"
+    },
+    "detail": {
+      "title": "Order Detail {id}",
+      "subtitle": "Fruits selected for this dispatch:",
+      "close": "Close"
+    },
+    "delete_confirm": {
+      "title": "Delete Order",
+      "message": "Are you sure you want to delete order {id}?",
+      "warning": "This action cannot be undone.",
+      "confirm": "Yes, delete"
+    },
+    "register": {
+      "title": "Create New Order",
+      "subtitle": "Register a new supply order for the global distribution network.",
+      "fruits_label": "ORDER FRUITS",
+      "select_fruits": "Select Fruits",
+      "delivery_date": "DELIVERY DATE",
+      "commercial_client": "COMMERCIAL CLIENT",
+      "client_placeholder": "E.g.: Global Supermarkets",
+      "assign_producer": "Assign Producer",
+      "rating": "RATING",
+      "map": {
+        "title": "ESTIMATED DELIVERY ROUTE",
+        "origin_label": "ORIGIN",
+        "destination_label": "DESTINATION",
+        "distance": "DISTANCE",
+        "time": "TIME"
+      },
+      "summary": {
+        "title": "ORDER SUMMARY",
+        "subtotal": "Estimated Subtotal",
+        "logistics": "Logistics & Handling",
+        "total": "Final Total"
+      },
+      "confirm_btn": "Confirm Registration",
+      "confirm_note": "UPON CONFIRMATION, THE ASSIGNED PRODUCER WILL BE AUTOMATICALLY NOTIFIED AND LOGISTICS SCHEDULING WILL BEGIN.",
+      "status_registered": "Order registered"
+    }
+  }
+}

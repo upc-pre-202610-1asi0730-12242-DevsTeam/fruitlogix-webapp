@@ -1,0 +1,135 @@
+﻿{
+  "app": {
+    "title": "FruitLogix",
+    "subtitle": "Bienvenido de nuevo al Centro de Distribución FruitLogix.",
+    "role": {
+      "distributor": "Distribuidor"
+    }
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "orders": "Pedidos",
+    "profiles": "Perfiles",
+    "quality": "Calidad",
+    "logistics": "Logística",
+    "payments": "Pagos",
+    "iot": "IoT",
+    "help": "Ayuda",
+    "logout": "Cerrar Sesión"
+  },
+  "pages": {
+    "dashboard": "Dashboard General",
+    "order-management": "Gestión de Pedidos",
+    "profiles-and-vehicles": "Perfiles y Vehículos",
+    "quality-control": "Control de Calidad",
+    "logistics-monitoring": "Logística y Monitoreo",
+    "payment-management": "Gestión de Pagos",
+    "iot-infrastructure": "Infraestructura IoT",
+    "not-found": "Página no encontrada"
+  },
+  "common": {
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "search": "Buscar",
+    "loading": "Cargando...",
+    "view_all": "Ver todos",
+    "close": "Cerrar"
+  },
+  "dashboard": {
+    "active_orders": "PEDIDOS ACTIVOS",
+    "product_quality": "CALIDAD DE PRODUCTO",
+    "optimal": "Óptimo",
+    "quality_note": "Basado en últimos 200 lotes",
+    "eta_average": "ETA PROMEDIO",
+    "daily_deliveries": "ENTREGAS DEL DÍA",
+    "weekly_volume": "Volumen de Distribución Semanal",
+    "weekly_volume_note": "Tonelaje total por día de operación",
+    "status_title": "Estado de Pedidos",
+    "status_note": "Ratio de cumplimiento actual",
+    "complied": "CUMPLIDO",
+    "delivered": "Entregados",
+    "in_transit": "En Camino",
+    "pending": "Pendientes",
+    "recent_orders": "Pedidos Recientes",
+    "table": {
+      "order_id": "ID PEDIDO",
+      "producer": "PRODUCTOR",
+      "product": "PRODUCTO",
+      "volume": "VOLUMEN",
+      "status": "ESTADO",
+      "action": "ACCIÓN"
+    }
+  },
+  "orders": {
+    "breadcrumb": {
+      "home": "Inicio",
+      "orders": "Pedidos",
+      "create": "Crear pedido"
+    },
+    "title": "Gestión de Pedidos",
+    "subtitle": "Supervisión en tiempo real de la cadena de suministro y flujos de pedidos globales.",
+    "search_placeholder": "Buscar por ID, pedido, cliente o fruta",
+    "stats": {
+      "total_active": "TOTAL ACTIVOS",
+      "in_transit": "EN TRÁNSITO"
+    },
+    "table": {
+      "id": "ID PEDIDO",
+      "client": "CLIENTE",
+      "fruit": "FRUTA",
+      "quantity": "CANTIDAD",
+      "status": "ESTADO",
+      "actions": "ACCIONES",
+      "showing": "MOSTRANDO {first}-{last} DE {totalRecords} PEDIDOS",
+      "empty": "No se han encontrado registros de pedidos.",
+      "empty_subtitle": "Verifica los filtros de búsqueda o registra uno nuevo."
+    },
+    "actions": {
+      "assign": "ASIGNAR",
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "view_tracking": "Ver seguimiento de pedido",
+      "restricted_edit": "No se puede editar un pedido entregado o cancelado"
+    },
+    "detail": {
+      "title": "Detalle de Pedido {id}",
+      "subtitle": "Frutas seleccionadas para este despacho:",
+      "close": "Cerrar"
+    },
+    "delete_confirm": {
+      "title": "Eliminar Pedido",
+      "message": "¿Estás seguro de que deseas eliminar el pedido {id}?",
+      "warning": "Esta acción no se puede deshacer.",
+      "confirm": "Sí, eliminar"
+    },
+    "register": {
+      "title": "Crear Nuevo Pedido",
+      "subtitle": "Registre una nueva orden de suministro para la red de distribución global.",
+      "fruits_label": "FRUTAS DEL PEDIDO",
+      "select_fruits": "Seleccionar Frutas",
+      "delivery_date": "FECHA DE ENTREGA",
+      "commercial_client": "CLIENTE COMERCIAL",
+      "client_placeholder": "Ej: Supermercados Global",
+      "assign_producer": "Asignar Productor",
+      "rating": "CALIFICACIÓN",
+      "map": {
+        "title": "RUTA DE ENTREGA ESTIMADA",
+        "origin_label": "ORIGEN",
+        "destination_label": "DESTINO",
+        "distance": "DISTANCIA",
+        "time": "TIEMPO"
+      },
+      "summary": {
+        "title": "RESUMEN DEL PEDIDO",
+        "subtotal": "Subtotal Estimado",
+        "logistics": "Logística & Manejo",
+        "total": "Total Final"
+      },
+      "confirm_btn": "Confirmar Registro",
+      "confirm_note": "AL CONFIRMAR, SE NOTIFICARÁ AUTOMÁTICAMENTE AL PRODUCTOR ASIGNADO Y SE INICIARÁ LA PROGRAMACIÓN LOGÍSTICA.",
+      "status_registered": "Pedido registrado"
+    }
+  }
+}
