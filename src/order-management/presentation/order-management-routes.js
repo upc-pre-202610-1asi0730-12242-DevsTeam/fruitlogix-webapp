@@ -5,8 +5,7 @@
  * @module orderManagementRoutes
  */
 // Lazy-loaded views
-const orderingModule = () => import('./views/ordering-module.vue');
-
+const orderingModule = () => import('./views/ordering-moule.vue');
 const orderManagementRoutes = [
     {
         path: 'orders',
