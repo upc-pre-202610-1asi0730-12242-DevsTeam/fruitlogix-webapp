@@ -1,4 +1,7 @@
 ## Web Application - Fruitlogix
+
+https://fruitlogixweb.web.app/dashboard
+
 This repository shows version of controls for our startup project
 Developer teams, the product name is fruitlogix.
 
