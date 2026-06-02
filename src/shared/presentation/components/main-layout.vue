@@ -37,7 +37,7 @@
             <i class="pi pi-question-circle" />
             <span>{{ t('nav.help') }}</span>
           </button>
-          <button class="nav-item secondary logout">
+          <button class="nav-item secondary logout" @click="handleLogout">
             <i class="pi pi-sign-out" />
             <span>{{ t('nav.logout') }}</span>
           </button>
@@ -85,11 +85,13 @@ import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import LanguageSwitcher from './language-switcher.vue';
+import { useAuthStore } from '../../../iam/application/auth.store.js';
 
 const route  = useRoute();
 const router = useRouter();
 const { t }  = useI18n();
 const sidebarVisible = ref(false);
+const authStore = useAuthStore();
 
 const menuItems = [
   { id: 'dashboard',         label: 'pages.dashboard',   icon: 'pi-th-large',     sidebarLabel: 'nav.dashboard',    path: '/dashboard' },
@@ -100,6 +102,12 @@ const menuItems = [
   { id: 'payment-management',label: 'pages.payment-management',               icon: 'pi-dollar',       sidebarLabel: 'nav.payments',        path: '/payment-management' },
   { id: 'iot-infrastructure',label: 'pages.iot-infrastructure',icon: 'pi-wifi',         sidebarLabel: 'nav.iot',          path: '/iot-infrastructure' }
 ];
+
+const handleLogout = () => {
+  authStore.logout();
+
+  router.push('/login');
+};
 
 const activeMenuItem = computed(() => {
   return menuItems.find(m => route.path.startsWith(m.path)) ?? menuItems[0];
