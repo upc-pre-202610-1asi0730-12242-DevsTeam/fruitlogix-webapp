@@ -319,30 +319,6 @@ const handleNav = (item) => {
   gap: 1.5rem;
 }
 
-.lang-switcher {
-  display: flex;
-  background: #1e2d22;
-  padding: 3px;
-  border-radius: 8px;
-}
-
-.lang-btn {
-  padding: 0.4rem 0.75rem;
-  border: none;
-  background: transparent;
-  color: #8fba8f;
-  font-size: 0.75rem;
-  font-weight: 700;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.lang-btn.active {
-  background: #fff;
-  color: #1a3020;
-}
-
 .action-icons {
   display: flex;
   gap: 1rem;
@@ -399,32 +375,6 @@ const handleNav = (item) => {
   flex: 1;
   overflow-y: auto;
   position: relative;
-}
-
-/* FAB */
-.fab-btn {
-  position: fixed;
-  bottom: 2rem;
-  right: 2rem;
-  width: 54px;
-  height: 54px;
-  border-radius: 12px;
-  background-color: #D7EC6E;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.25rem;
-  color: #1a3020;
-  box-shadow: 0 8px 24px rgba(215, 236, 110, 0.4);
-  cursor: pointer;
-  transition: transform 0.2s, background-color 0.2s;
-  z-index: 50;
-}
-
-.fab-btn:hover {
-  transform: translateY(-4px);
-  background-color: #e2f58a;
 }
 
 @media (max-width: 1024px) {
