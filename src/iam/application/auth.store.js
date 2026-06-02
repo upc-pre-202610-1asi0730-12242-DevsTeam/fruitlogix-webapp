@@ -7,7 +7,7 @@ export const useAuthStore = defineStore('auth', {
         user: null
     }),
     actions: {
-        async login(email, password) {
+        async login(_email, _password) {
             // Mock API call
             return new Promise((resolve) => {
                 setTimeout(() => {
