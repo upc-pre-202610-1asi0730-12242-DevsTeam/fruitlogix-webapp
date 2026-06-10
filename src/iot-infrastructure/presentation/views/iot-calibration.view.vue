@@ -445,13 +445,12 @@ onMounted(async () => {
   .rules-column { display: none; }
   .feed-grid { grid-template-columns: 1fr; }
   
-  /* 🟢 MAGIA PARA QUE EL GRÁFICO SE ACHIQUE */
   .analysis-column, .card {
-    min-width: 0; /* Obliga al contenedor a encogerse */
+    min-width: 0;
   }
   .chart-container {
     width: 100%;
-    overflow: hidden; /* Evita que el gráfico desborde */
+    overflow: hidden;
   }
 }
 
