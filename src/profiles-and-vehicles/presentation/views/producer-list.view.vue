@@ -1,7 +1,6 @@
-﻿<template>
+<template>
   <div class="page-wrapper">
 
-    <!-- Header -->
     <div class="header-section">
       <div class="title-area">
         <nav class="breadcrumb">
@@ -23,7 +22,6 @@
       </div>
     </div>
 
-    <!-- Stats -->
     <div class="stats-row">
       <div class="stat-card">
         <span class="stat-title">TOTAL PRODUCTORES</span>
@@ -43,9 +41,8 @@
       </div>
     </div>
 
-    <!-- Producers list -->
     <div class="producer-grid">
-      <article v-for="p in filteredProducers" :key="p.id" class="producer-card">
+      <article v-for="p in dynamicProducers" :key="p.id" class="producer-card">
 
         <div class="producer-main">
           <img
@@ -58,6 +55,9 @@
           <div class="producer-info">
             <div class="name-row">
               <h3 class="producer-name">{{ p.fullName }}</h3>
+              <button class="chat-quick-btn" title="Enviar Mensaje" @click="goToChat(p)">
+                <i class="pi pi-comments" />
+              </button>
               <span class="performance-badge" :class="badgeClass(p)">
                 <i class="pi pi-verified" /> {{ badgeLabel(p) }}
               </span>
@@ -82,9 +82,26 @@
           </div>
         </div>
 
+        <div class="producer-metrics">
+          <div class="metric-row">
+            <span class="meta-label">Stock Actual</span>
+            <div class="stock-chips">
+              <span class="stock-chip" v-for="(qty, item) in p.stock" :key="item">
+                {{ item }}: {{ qty }}kg
+              </span>
+            </div>
+          </div>
+          <div class="metric-row">
+            <span class="meta-label">Pedidos Activos</span>
+            <span class="active-orders-counter" :class="{'no-orders': p.activeOrders === 0}">
+              <i class="pi pi-shopping-cart" /> {{ p.activeOrders }} Pedidos Asignados
+            </span>
+          </div>
+        </div>
+
         <div class="producer-actions">
-          <button class="assign-btn" @click="assignToOrder(p)">
-            Asignar a Pedido <i class="pi pi-arrow-right" />
+          <button class="view-profile-btn" @click="viewProfile(p)">
+            Ver perfil completo <i class="pi pi-chevron-right" />
           </button>
           <div class="sub-actions">
             <button class="ghost-btn" title="Editar" @click="editProducer(p)">
@@ -97,8 +114,7 @@
         </div>
       </article>
 
-      <!-- Empty state -->
-      <div v-if="!filteredProducers.length" class="empty-state">
+      <div v-if="!dynamicProducers.length" class="empty-state">
         <i class="pi pi-users empty-icon" />
         <p>{{ searchQuery ? 'No se encontraron productores que coincidan con tu búsqueda.' : 'Aún no hay productores registrados.' }}</p>
         <button v-if="!searchQuery" class="primary-btn" @click="goToNew">
@@ -107,12 +123,30 @@
       </div>
     </div>
 
-    <!-- FAB Agregar -->
-    <button class="add-producer-fab" @click="goToNew">
-      <i class="pi pi-plus" /> AGREGAR PRODUCTOR
-    </button>
+    <div class="bottom-action-group">
+      <button class="secondary-fab" @click="goToNew">
+        <i class="pi pi-plus" /> Agregar Productor
+      </button>
+      <button class="primary-fab" @click="isInviteVisible = true">
+        <i class="pi pi-envelope" /> Invitar Productor
+      </button>
+    </div>
 
-    <!-- Confirmación de eliminación -->
+    <pv-dialog v-model:visible="isInviteVisible" modal :style="{ width: '450px' }" class="invite-dialog">
+      <div class="invite-body">
+        <div class="invite-icon-wrap"><i class="pi pi-send" /></div>
+        <h2 class="invite-title">Invitar a la Red</h2>
+        <p class="invite-desc">Ingresa el correo del productor. Le enviaremos un enlace seguro para que complete su perfil en FruitLogix.</p>
+        <input type="email" v-model="inviteEmail" placeholder="correo@productor.com" class="invite-input" />
+      </div>
+      <template #footer>
+        <div class="invite-footer">
+          <button class="cancel-del-btn" @click="isInviteVisible = false">Cancelar</button>
+          <button class="primary-btn w-full" @click="sendInvite">Enviar Invitación</button>
+        </div>
+      </template>
+    </pv-dialog>
+
     <pv-dialog v-model:visible="isDeleteVisible" modal :style="{ width: '420px' }" class="delete-confirm-dialog">
       <template #header>
         <div class="delete-header">
@@ -154,17 +188,32 @@ const searchQuery      = ref('');
 const isDeleteVisible  = ref(false);
 const producerToDelete = ref(null);
 
+// Variables para invitación
+const isInviteVisible = ref(false);
+const inviteEmail = ref('');
+
 onMounted(() => store.fetchProducers());
 
-const filteredProducers = computed(() => {
+// Inyectamos datos dinámicos simulados al array de la tienda para que cada productor tenga métricas diferentes
+const dynamicProducers = computed(() => {
   const q = searchQuery.value.toLowerCase().trim();
   const list = store.producers;
-  if (!q) return list;
-  return list.filter(p =>
+  
+  const mappedList = list.map((p, index) => ({
+    ...p,
+    // Asignación de datos matemáticos pseudo-aleatorios basados en el index para la demo
+    activeOrders: (index % 3 === 0) ? 2 : (index % 2 === 0 ? 1 : 0),
+    stock: {
+      [p.crop || 'Fruta General']: (index + 1) * 150,
+      'Variedad Extra': (index + 1) * 50
+    }
+  }));
+
+  if (!q) return mappedList;
+  return mappedList.filter(p =>
       (p.fullName ?? '').toLowerCase().includes(q) ||
       (p.crop ?? '').toLowerCase().includes(q) ||
-      (p.city ?? '').toLowerCase().includes(q) ||
-      (p.legalName ?? '').toLowerCase().includes(q)
+      (p.city ?? '').toLowerCase().includes(q)
   );
 });
 
@@ -180,12 +229,11 @@ const avgRating = computed(() => {
 const weeklyProduction = computed(() => {
   const list = store.producers;
   if (!list.length) return '0';
-  // monthlyProduction puede venir como "12,000" → kg/mes. Semanal = mes/4. Tn = kg/1000.
   const totalMonthKg = list.reduce((s, p) => s + parseAmount(p.monthlyProduction), 0);
   return (totalMonthKg / 4 / 1000).toFixed(1);
 });
 
-const incidents30d = ref(0); // mocked hasta conectar con quality-control
+const incidents30d = ref(0); 
 
 function parseAmount(text) {
   if (typeof text === 'number') return text;
@@ -205,7 +253,6 @@ function avatarFor(p) {
 }
 
 function onPhotoError(e, p) {
-  // Si la URL del productor falla, caemos al avatar de iniciales.
   e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(p.fullName ?? 'Productor')}&background=c9e265&color=1a3020&size=120&bold=true`;
 }
 
@@ -226,8 +273,18 @@ function badgeClass(p) {
 
 function goToNew()            { router.push({ name: 'profiles-and-vehicles-new' }); }
 function editProducer(p)      { router.push({ name: 'profiles-and-vehicles-edit', params: { id: p.id } }); }
-function assignToOrder(p) {
-  router.push({ name: 'order-list', query: { producer: String(p.id) } });
+function viewProfile(p)       { router.push({ name: 'profiles-and-vehicles-edit', params: { id: p.id } }); }
+
+function goToChat(p) {
+  // Redirige al sistema de chat
+  router.push({ name: 'customer-chat', query: { user: p.id } });
+}
+
+function sendInvite() {
+  if (!inviteEmail.value) return;
+  alert(`Invitación enviada a: ${inviteEmail.value}`);
+  inviteEmail.value = '';
+  isInviteVisible.value = false;
 }
 
 function confirmDelete(p) { producerToDelete.value = p; isDeleteVisible.value = true; }
@@ -344,11 +401,11 @@ async function doDelete() {
   background: #1e2d22;
   border: 1px solid #2a3d2e;
   border-radius: 14px;
-  padding: 1.1rem 1.3rem;
-  display: flex;
+  padding: 1.25rem 1.5rem;
+  display: grid;
+  grid-template-columns: 2.2fr 1.5fr auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 1.25rem;
+  gap: 1.5rem;
   transition: border-color 0.15s, transform 0.15s;
 }
 .producer-card:hover {
@@ -359,8 +416,7 @@ async function doDelete() {
 .producer-main {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  flex: 1;
+  gap: 1.25rem;
   min-width: 0;
 }
 
@@ -392,6 +448,25 @@ async function doDelete() {
   color: #ffffff;
   margin: 0;
   letter-spacing: -0.01em;
+}
+
+.chat-quick-btn {
+  background: rgba(212, 233, 82, 0.1);
+  color: #D4E952;
+  border: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.8rem;
+}
+.chat-quick-btn:hover {
+  background: #D4E952;
+  color: #121212;
 }
 
 .performance-badge {
@@ -437,34 +512,77 @@ async function doDelete() {
 }
 .stars { display: inline-flex; gap: 2px; color: #facc15; font-size: 0.85rem; }
 
+/* ── Metrics ────────────────────────────────── */
+.producer-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  padding-left: 1rem;
+  border-left: 1px dashed #2a3d2e;
+}
+
+.metric-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.stock-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.stock-chip {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e0ead0;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.active-orders-counter {
+  font-size: 0.85rem;
+  color: #D4E952;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.no-orders {
+  color: #8fba8f;
+}
+
 /* ── Actions ────────────────────────────────── */
 .producer-actions {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0.55rem;
-  flex-shrink: 0;
+  gap: 0.75rem;
 }
 
-.assign-btn {
-  background: #0a1810;
-  color: #c9e265;
-  border: 1px solid #2a3d2e;
-  padding: 0.65rem 1.1rem;
-  border-radius: 10px;
-  font-size: 0.82rem;
+.view-profile-btn {
+  background: transparent;
+  color: #8fba8f;
+  border: 1px solid #3d5c42;
+  padding: 0.5rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
   font-weight: 700;
+  font-family: 'DM Sans', sans-serif;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  font-family: 'DM Sans', sans-serif;
+  gap: 0.4rem;
   transition: all 0.15s;
 }
-.assign-btn:hover {
-  background: #c9e265;
-  color: #122216;
-  border-color: #c9e265;
+
+.view-profile-btn:hover {
+  background: #2a3d2e;
+  color: #D4E952;
+  border-color: #D4E952;
 }
 
 .sub-actions { display: flex; gap: 0.3rem; }
@@ -506,43 +624,67 @@ async function doDelete() {
   display: inline-flex; align-items: center; gap: 0.45rem;
 }
 .primary-btn:hover { background: #d6ec6e; }
+.w-full { width: 100%; }
 
-/* ── FAB ────────────────────────────────────── */
-.add-producer-fab {
+/* ── Bottom Action Group ────────────────────── */
+.bottom-action-group {
   position: fixed;
   bottom: 1.75rem;
   right: 2rem;
-  background: #c9e265;
-  color: #1a3020;
-  border: none;
+  display: flex;
+  gap: 0.75rem;
+  z-index: 50;
+}
+
+.secondary-fab, .primary-fab {
+  font-family: 'DM Sans', sans-serif;
   padding: 0.85rem 1.3rem;
   border-radius: 14px;
   font-size: 0.8rem;
   font-weight: 900;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
-  box-shadow: 0 10px 28px rgba(201, 226, 101, 0.5);
-  transition: transform 0.15s, background 0.15s;
-  z-index: 50;
-  font-family: 'DM Sans', sans-serif;
+  transition: transform 0.15s, background 0.15s, border-color 0.15s;
 }
-.add-producer-fab:hover { transform: translateY(-2px); background: #d6ec6e; }
 
-/* ── Delete Dialog ──────────────────────────── */
-:global(.delete-confirm-dialog) {
+.secondary-fab {
+  background: #1e2d22;
+  color: #D4E952;
+  border: 1.5px solid #D4E952;
+}
+.secondary-fab:hover {
+  background: rgba(212, 233, 82, 0.1);
+  transform: translateY(-2px);
+}
+
+.primary-fab {
+  background: #D4E952;
+  color: #1a3020;
+  border: 1.5px solid #D4E952;
+  box-shadow: 0 10px 28px rgba(212, 233, 82, 0.4);
+}
+.primary-fab:hover {
+  background: #e2f470;
+  transform: translateY(-2px);
+}
+
+/* ── Dialogs (Invite & Delete) ──────────────────────────── */
+:global(.delete-confirm-dialog), :global(.invite-dialog) {
   font-family: 'DM Sans', sans-serif !important;
   background: #1a2a1e !important;
   border-radius: 16px !important;
   border: 1px solid #3d5c42 !important;
 }
-:global(.delete-confirm-dialog .p-dialog-header),
-:global(.delete-confirm-dialog .p-dialog-content),
-:global(.delete-confirm-dialog .p-dialog-footer) {
+:global(.delete-confirm-dialog .p-dialog-header), :global(.invite-dialog .p-dialog-header),
+:global(.delete-confirm-dialog .p-dialog-content), :global(.invite-dialog .p-dialog-content),
+:global(.delete-confirm-dialog .p-dialog-footer), :global(.invite-dialog .p-dialog-footer) {
   background: #1a2a1e !important; color: #e0ead0 !important; border: none !important;
 }
+
+/* Delete Specifics */
 .delete-header { display: flex; align-items: center; gap: 0.75rem; font-size: 1.1rem; font-weight: 800; color: #e0ead0; }
 .delete-icon-wrap {
   width: 38px; height: 38px; border-radius: 10px;
@@ -554,7 +696,38 @@ async function doDelete() {
 .delete-message { font-size: 0.9rem; color: #c8dcc8; margin: 0.5rem 0 1rem; }
 .delete-id      { color: #c8e645; font-weight: 800; }
 .delete-warning { font-size: 0.75rem; color: #f87171; margin: 0; }
-.delete-footer  { display: flex; gap: 0.75rem; }
+
+/* Invite Specifics */
+.invite-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1rem 0;
+}
+.invite-icon-wrap {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: rgba(212, 233, 82, 0.15);
+  display: flex; align-items: center; justify-content: center;
+  color: #D4E952; font-size: 1.8rem;
+  margin-bottom: 1rem;
+}
+.invite-title { font-size: 1.3rem; font-weight: 800; color: #FFFFFF; margin: 0 0 0.5rem 0; }
+.invite-desc { font-size: 0.85rem; color: #9ab39d; margin: 0 0 1.5rem 0; line-height: 1.4; }
+.invite-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #FFFFFF;
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+.invite-input:focus { outline: none; border-color: #D4E952; }
+
+/* Shared Dialog Footer Buttons */
+.delete-footer, .invite-footer  { display: flex; gap: 0.75rem; width: 100%; }
 .cancel-del-btn, .confirm-del-btn {
   flex: 1; padding: 0.75rem; border-radius: 10px;
   font-size: 0.88rem; font-weight: 700; cursor: pointer;
@@ -574,8 +747,9 @@ async function doDelete() {
   .header-section  { flex-direction: column; }
   .actions-area    { width: 100%; }
   .search-container{ width: 100%; }
-  .producer-card   { flex-direction: column; align-items: stretch; }
-  .producer-actions{ flex-direction: row; justify-content: space-between; align-items: center; }
+  .producer-card   { grid-template-columns: 1fr; gap: 1rem; }
+  .producer-actions{ flex-direction: row-reverse; justify-content: space-between; align-items: center; width: 100%; }
+  .producer-metrics{ border-left: none; padding-left: 0; border-top: 1px dashed #2a3d2e; padding-top: 1rem; }
   .meta-grid       { grid-template-columns: 1fr; gap: 0.45rem; }
 }
 @media (max-width: 500px) {

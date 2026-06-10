@@ -4,8 +4,8 @@ import es from './locales/es.json';
 
 const i18n = createI18n({
     legacy: false, // Use Composition API
-    locale: 'es', // Default locale
-    fallbackLocale: 'en',
+    locale: 'en', // Default locale
+    fallbackLocale: 'es',
     messages: {
         en,
         es

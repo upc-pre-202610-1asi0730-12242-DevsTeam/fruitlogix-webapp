@@ -115,8 +115,13 @@ export default {
     const handleLogin = async () => {
       loading.value = true;
       try {
-        await authStore.login(email.value, password.value);
-        router.push('/');
+        const result = await authStore.login(email.value, password.value);
+        // Redirect based on role
+        if (result.role === 'customer') {
+          router.push('/customer/dashboard');
+        } else {
+          router.push('/dashboard');
+        }
       } catch (error) {
         console.error('Error in login', error);
       } finally {

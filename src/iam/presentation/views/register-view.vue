@@ -119,6 +119,7 @@
 <script>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { useAuthStore } from '../../application/auth.store.js';
 
 export default {
   name: 'RegisterView',
@@ -133,19 +134,28 @@ export default {
     const showConfirmPassword = ref(false);
     const loading = ref(false);
     const router = useRouter();
+    const authStore = useAuthStore();
 
     const handleRegister = async () => {
       if (password.value !== confirmPassword.value) {
         alert('Las contraseñas no coinciden.');
         return;
       }
+      if (!userType.value) {
+        alert('Selecciona un tipo de usuario.');
+        return;
+      }
       loading.value = true;
       try {
-        // Mock registration process
-        setTimeout(() => {
-          alert('Cuenta creada exitosamente. Inicie sesión.');
-          router.push('/login');
-        }, 1000);
+        await authStore.register({
+          username: username.value,
+          email: email.value,
+          phone: phone.value,
+          password: password.value,
+          userType: userType.value
+        });
+        alert('Cuenta creada exitosamente. Inicie sesión.');
+        router.push('/login');
       } catch (error) {
         console.error('Error in registration', error);
       } finally {

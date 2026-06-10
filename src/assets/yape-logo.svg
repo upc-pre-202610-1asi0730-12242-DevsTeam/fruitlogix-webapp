@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 120">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Pacifico&amp;display=swap');
+      .text-yape { font-family: 'Pacifico', cursive; font-size: 54px; fill: #ffffff; }
+      .text-s { font-family: 'Arial', sans-serif; font-size: 18px; font-weight: bold; fill: #742384; }
+    </style>
+  </defs>
+  <!-- S/ bubble -->
+  <path d="M70,10 C56.2,10 45,21.2 45,35 C45,41.9 47.8,48.1 52.3,52.6 L49,66 L61.1,59.3 C63.9,59.8 66.9,60 70,60 C83.8,60 95,48.8 95,35 C95,21.2 83.8,10 70,10 Z" fill="#30c6b6"/>
+  <text x="69" y="41" class="text-s" text-anchor="middle">S/</text>
+  <!-- yape text -->
+  <text x="70" y="105" class="text-yape" text-anchor="middle" transform="rotate(-8 70 105)">yape</text>
+  <path d="M 35,110 Q 70,105 110,100" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+</svg>
