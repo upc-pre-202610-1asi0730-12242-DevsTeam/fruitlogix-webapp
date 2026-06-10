@@ -136,7 +136,7 @@ const useOrderManagementStore = defineStore('order-management', () => {
             vehicle: ''
         };
 
-        orders.value.unshift(mockOrder); // Lo inyecta arriba del todo
+        orders.value.unshift(mockOrder);
         console.log('[Simulación] Cliente creó pedido:', mockOrder);
         return mockOrder;
     }
