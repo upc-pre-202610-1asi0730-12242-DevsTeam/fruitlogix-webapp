@@ -89,7 +89,7 @@
             <button
                 class="status-badge"
                 :class="statusClassFor(data.status)"
-                @click="showOrderState(data)"
+                @click="goToOrderDetail({ data })"
                 :title="t('orders.actions.view_tracking')"
             >
               <span class="status-dot"/>
@@ -101,7 +101,7 @@
         <pv-column header="Acciones" headerStyle="text-align: right">
           <template #body="{ data }">
             <div class="row-actions-right">
-              <button class="icon-btn-minimal" @click="showOrderState(data)" title="Ver detalles">
+              <button class="icon-btn-minimal" @click="goToOrderDetail({ data })" title="Ver detalle">
                 <i class="pi pi-eye"/>
               </button>
               <button class="icon-btn-minimal" :class="{ disabled: isStatusRestricted(data.status) }" @click="!isStatusRestricted(data.status) && showOrderEdit(data)" title="Editar">
@@ -120,9 +120,6 @@
         </template>
       </pv-data-table>
     </div>
-
-    <!-- Dialog for Order Tracking -->
-    <order-state v-model:visible="isOrderStateVisible" :order="selectedOrder" @status-change="handleStatusChange"/>
 
     <!-- Dialog for Order Editing -->
     <order-edit v-model:visible="isOrderEditVisible" :order="selectedOrder" @save="handleOrderSave"/>
@@ -216,7 +213,6 @@
 import {ref, onMounted, computed} from 'vue';
 import {useI18n} from 'vue-i18n';
 import {useRouter} from 'vue-router';
-import OrderState from './order-state.vue';
 import OrderEdit from './order-edit.vue';
 import {useOrderManagementStore} from '../../application/order-management.store.js';
 
@@ -228,7 +224,6 @@ const {t} = useI18n();
 const searchQuery = ref('');
 const activeStatusTab = ref('Todos');
 
-const isOrderStateVisible = ref(false);
 const isOrderEditVisible = ref(false);
 const isDeleteConfirmVisible = ref(false);
 const isFruitsDetailVisible = ref(false);
@@ -337,11 +332,6 @@ function statusClassFor(status) {
   return 'status-registered';
 }
 
-function showOrderState(order) {
-  selectedOrder.value = order;
-  isOrderStateVisible.value = true;
-}
-
 function showOrderEdit(order) {
   selectedOrder.value = order;
   isOrderEditVisible.value = true;
@@ -384,13 +374,6 @@ async function confirmDelete() {
   await orderStore.deleteOrder(orderToDelete.value.id);
   isDeleteConfirmVisible.value = false;
   orderToDelete.value = null;
-}
-
-async function handleStatusChange({orderId, newStatus}) {
-  const order = orders.value.find(o => o.id === orderId);
-  if (!order) return;
-  const updatedOrder = {...order, status: newStatus, statusClass: statusClassFor(newStatus)};
-  await orderStore.updateOrder(orderId, updatedOrder);
 }
 
 async function handleOrderSave(orderData) {
