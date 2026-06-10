@@ -1,24 +1,38 @@
-﻿{
+{
   "app": {
     "title": "FruitLogix",
     "subtitle": "Bienvenido de nuevo al Centro de Distribución FruitLogix.",
     "role": {
-      "distributor": "Distribuidor"
+      "distributor": "Distribuidor",
+      "producer": "Productor",
+      "customer": "Cliente Comercial"
     }
   },
   "nav": {
-    "dashboard": "Dashboard",
+    "dashboard": "Panel",
     "orders": "Pedidos",
-    "profiles": "Perfiles",
+    "profiles": "Mis Productores",
     "quality": "Calidad",
     "logistics": "Logística",
     "payments": "Pagos",
     "iot": "IoT",
+    "catalog": "Catálogo",
+    "tracking": "Seguimiento",
+    "reception": "Recepción",
+    "chat": "Chat",
     "help": "Ayuda",
-    "logout": "Cerrar Sesión"
+    "logout": "Cerrar Sesión",
+    "producer_orders": "Mis Pedidos",
+    "producer_lots": "Mis Lotes",
+    "producer_inspections": "Inspecciones",
+    "producer_report": "Reportar Calidad",
+    "producer_stock": "Stock",
+    "producer_chat": "Mensajes",
+    "nav.messages": "Mensajes",
+    "messages": "Mensajes"
   },
   "pages": {
-    "dashboard": "Dashboard General",
+    "dashboard": "Dashboard",
     "order-management": "Gestión de Pedidos",
     "profiles-and-vehicles": "Perfiles y Vehículos",
     "quality-control": "Control de Calidad",
@@ -38,29 +52,44 @@
     "close": "Cerrar"
   },
   "dashboard": {
+    "welcome": "Bienvenido",
     "active_orders": "PEDIDOS ACTIVOS",
     "product_quality": "CALIDAD DE PRODUCTO",
     "optimal": "Óptimo",
     "quality_note": "Basado en últimos 200 lotes",
     "eta_average": "ETA PROMEDIO",
     "daily_deliveries": "ENTREGAS DEL DÍA",
+    "iot_alerts": "ALERTAS IOT",
     "weekly_volume": "Volumen de Distribución Semanal",
     "weekly_volume_note": "Tonelaje total por día de operación",
+    "action_center": "Action Center",
+    "resolve_issue": "Resolver Problema",
+    "just_now": "Justo ahora",
+    "minutes_ago": "hace {n}m",
     "status_title": "Estado de Pedidos",
     "status_note": "Ratio de cumplimiento actual",
     "complied": "CUMPLIDO",
     "delivered": "Entregados",
     "in_transit": "En Camino",
     "pending": "Pendientes",
+    "urgent_orders": "Pedidos Urgentes",
+    "ongoing_deliveries": "Entregas en Curso",
+    "view_all_orders": "Ver todos los pedidos",
+    "arrives_in": "Llega en {n} min",
+    "driver": "Driver",
     "recent_orders": "Pedidos Recientes",
     "table": {
-      "order_id": "ID PEDIDO",
+      "order_id": "Order ID",
+      "client": "Client",
       "producer": "PRODUCTOR",
       "product": "PRODUCTO",
       "volume": "VOLUMEN",
-      "status": "ESTADO",
-      "action": "ACCIÓN"
-    }
+      "status": "Status",
+      "action": "Action",
+      "view": "Ver"
+    },
+    "title": "Mi Panel",
+    "subtitle": "Resumen de tu actividad comercial"
   },
   "orders": {
     "breadcrumb": {
@@ -131,5 +160,20 @@
       "confirm_note": "AL CONFIRMAR, SE NOTIFICARÁ AUTOMÁTICAMENTE AL PRODUCTOR ASIGNADO Y SE INICIARÁ LA PROGRAMACIÓN LOGÍSTICA.",
       "status_registered": "Pedido registrado"
     }
+  },
+  "catalog": {
+    "title": "Catálogo de Productos"
+  },
+  "track": {
+    "title": "Seguimiento del Pedido"
+  },
+  "pay": {
+    "title": "Pagos"
+  },
+  "reception": {
+    "title": "Recepción de Pedidos"
+  },
+  "chat": {
+    "title": "Chat de Soporte"
   }
 }

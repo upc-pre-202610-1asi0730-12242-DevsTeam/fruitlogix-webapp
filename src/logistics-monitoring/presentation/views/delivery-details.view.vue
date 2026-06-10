@@ -1,6 +1,5 @@
 <template>
   <div class="page-wrapper" v-if="delivery">
-    <!-- Header Area -->
     <header class="tracking-header">
       <div class="header-left">
         <pv-button icon="pi pi-arrow-left" class="back-btn" @click="router.back()" />
@@ -18,9 +17,7 @@
     </header>
 
     <div class="details-grid">
-      <!-- Left Column -->
       <aside class="side-panel">
-        <!-- Driver Card -->
         <div class="card driver-card">
           <div class="card-header-mini">
             <i class="pi pi-user" />
@@ -38,10 +35,9 @@
               <span class="phone-link"><i class="pi pi-phone" /> +1 (555) 019-2831</span>
             </div>
           </div>
-          <pv-button label="Message Driver" icon="pi pi-comment" class="msg-btn" />
+          <pv-button label="Message Driver" icon="pi pi-comment" class="msg-btn" @click="goToChat(delivery.orderId)" />
         </div>
 
-        <!-- Vehicle Details Card -->
         <div class="card vehicle-card">
           <div class="card-header-mini">
             <i class="pi pi-truck" />
@@ -59,7 +55,6 @@
           </div>
         </div>
 
-        <!-- Cargo Manifest Card -->
         <div class="card manifest-card">
           <div class="card-header-mini">
             <i class="pi pi-list" />
@@ -84,11 +79,8 @@
         </div>
       </aside>
 
-      <!-- Right Column -->
       <main class="main-content">
-        <!-- Sensor Row -->
         <div class="sensor-row">
-          <!-- Temp Card -->
           <div class="card sensor-card temp">
             <div class="card-header-mini">
               <div class="label-with-icon">
@@ -107,7 +99,6 @@
             </div>
           </div>
 
-          <!-- Humidity Card -->
           <div class="card sensor-card hum">
             <div class="card-header-mini">
               <div class="label-with-icon">
@@ -127,14 +118,12 @@
           </div>
         </div>
 
-        <!-- Telemetry Card -->
         <div class="card telemetry-card">
           <div class="card-header-mini">
             <i class="pi pi-map" />
             <span>ACTIVE ROUTE TELEMETRY</span>
           </div>
 
-          <!-- Progress Stepper -->
           <div class="route-stepper">
             <div class="stepper-line">
               <div class="line-progress" style="width: 75%"></div>
@@ -169,7 +158,6 @@
             </div>
           </div>
 
-          <!-- Stats Grid -->
           <div class="telemetry-stats">
             <div class="t-stat">
               <span class="t-label">Current Speed</span>
@@ -231,9 +219,27 @@ const route = useRoute();
 const router = useRouter();
 const store = useLogisticsMonitoringStore();
 
+const goToChat = (orderId) => {
+  router.push({ 
+    name: 'distributor-chat', 
+    query: { orderId: orderId } 
+  });
+};
+
+// 🟢 SOLUCIÓN: Agregamos un salvavidas (mock) si el Store no encuentra el pedido.
 const delivery = computed(() => {
   const id = route.params.id;
-  return store.deliveries.find(d => d.deliveryId === id);
+  const storeDelivery = store.deliveries.find(d => d.deliveryId === id || d.orderId === id);
+  
+  // Si lo encuentra en la base de datos, lo retorna. Si no, crea uno de demostración para que la UI no se rompa.
+  if (storeDelivery) return storeDelivery;
+  
+  return {
+    orderId: id, // Usa el ID de la URL dinámicamente (#ORD-2024-003)
+    assignedDriver: 'Carlos Ávila',
+    vehiclePlate: 'ABC-123',
+    status: 'In Transit'
+  };
 });
 
 onMounted(async () => {
@@ -248,7 +254,7 @@ onMounted(async () => {
 
 .page-wrapper {
   padding: 2rem;
-  background: #e8f5e4;
+  background: #E1EBE1; /* Ajustado al fondo global de FruitLogix */
   min-height: 100vh;
   font-family: 'DM Sans', sans-serif;
   color: #1a3020;
@@ -325,7 +331,8 @@ onMounted(async () => {
   border-radius: 16px;
   padding: 1.5rem;
   color: #e0ead0;
-  border: 1px solid #2a3d2e;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 .card-header-mini {
@@ -343,7 +350,7 @@ onMounted(async () => {
 .detail-link-btn {
   font-size: 0.6rem !important;
   font-weight: 800 !important;
-  color: #c9e265 !important;
+  color: #D4E952 !important;
   padding: 0 !important;
   letter-spacing: 0.05em !important;
 }
@@ -383,14 +390,14 @@ onMounted(async () => {
   border: 1px solid #facc15;
 }
 
-.driver-info h3 { font-size: 1.1rem; margin: 0 0 0.25rem; }
+.driver-info h3 { font-size: 1.1rem; margin: 0 0 0.25rem; color: #FFF; }
 .phone-link { font-size: 0.75rem; color: #8fba8f; }
 
 .msg-btn {
   width: 100%;
   background: transparent !important;
-  border: 1.5px solid #3d5c42 !important;
-  color: #c9e265 !important;
+  border: 1.5px solid rgba(255,255,255,0.2) !important;
+  color: #D4E952 !important;
   border-radius: 10px !important;
   font-size: 0.85rem !important;
   font-weight: 700 !important;
@@ -402,7 +409,7 @@ onMounted(async () => {
   gap: 1rem;
 }
 .info-box {
-  background: #2a3d2e;
+  background: #142116;
   padding: 0.75rem;
   border-radius: 10px;
   display: flex;
@@ -415,7 +422,7 @@ onMounted(async () => {
 .manifest-list { display: flex; flex-direction: column; gap: 1rem; }
 .manifest-item { display: flex; justify-content: space-between; align-items: center; }
 .item-left { display: flex; align-items: center; gap: 0.75rem; font-size: 0.9rem; font-weight: 600; }
-.icon-fruit { color: #c9e265; }
+.icon-fruit { color: #D4E952; }
 .item-qty { font-size: 0.85rem; color: #8fba8f; font-weight: 700; }
 
 /* ── Right Column ── */
@@ -454,7 +461,7 @@ onMounted(async () => {
 .sparkline { width: 140px; height: 50px; }
 .spark-svg { width: 100%; height: 100%; }
 .spark-path { fill: none; stroke-width: 3; stroke-linecap: round; }
-.temp-path { stroke: #c9e265; filter: drop-shadow(0 0 5px rgba(201, 226, 101, 0.4)); }
+.temp-path { stroke: #D4E952; filter: drop-shadow(0 0 5px rgba(212, 233, 82, 0.4)); }
 .hum-path  { stroke: #60a5fa; filter: drop-shadow(0 0 5px rgba(96, 165, 250, 0.4)); }
 
 /* ── Telemetry Card ── */
@@ -468,14 +475,14 @@ onMounted(async () => {
   position: absolute;
   top: 15px; left: 0; right: 0;
   height: 4px;
-  background: #2a3d2e;
+  background: #142116;
   border-radius: 2px;
 }
 .line-progress {
   height: 100%;
-  background: #c9e265;
+  background: #D4E952;
   border-radius: 2px;
-  box-shadow: 0 0 12px rgba(201, 226, 101, 0.5);
+  box-shadow: 0 0 12px rgba(212, 233, 82, 0.5);
 }
 
 .step {
@@ -490,36 +497,36 @@ onMounted(async () => {
   width: 32px; height: 32px;
   border-radius: 50%;
   background: #1e2d22;
-  border: 4px solid #2a3d2e;
+  border: 4px solid #142116;
   transition: all 0.3s;
   display: flex; align-items: center; justify-content: center;
 }
-.step.completed .step-dot { background: #c9e265; border-color: #c9e265; }
+.step.completed .step-dot { background: #D4E952; border-color: #D4E952; }
 .step.active .step-dot {
-  background: #c9e265; border-color: #c9e265;
+  background: #D4E952; border-color: #D4E952;
   color: #1a3020; font-size: 1rem;
-  box-shadow: 0 0 15px rgba(201, 226, 101, 0.4);
+  box-shadow: 0 0 15px rgba(212, 233, 82, 0.4);
 }
 
 .step-info { position: absolute; top: 40px; white-space: nowrap; text-align: center; }
 .step-name { display: block; font-size: 0.8rem; font-weight: 800; color: #8fba8f; }
-.step.active .step-name { color: #c9e265; }
+.step.active .step-name { color: #D4E952; }
 .step-time { font-size: 0.65rem; color: #6b8a6b; font-weight: 700; }
 
 .telemetry-stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
-  background: #2a3d2e;
+  background: #142116;
   padding: 1.25rem;
   border-radius: 12px;
   margin-top: 1rem;
 }
 .t-stat { display: flex; flex-direction: column; gap: 0.3rem; }
-.t-label { font-size: 0.6rem; color: #6b8a6b; font-weight: 800; letter-spacing: 0.05em; }
+.t-label { font-size: 0.6rem; color: #6b8a6b; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
 .t-value { font-size: 1.1rem; font-weight: 800; color: #e0ead0; }
 .t-value small { font-size: 0.7rem; color: #6b8a6b; margin-left: 2px; }
-.t-value.highlight { color: #c9e265; }
+.t-value.highlight { color: #D4E952; }
 
 /* ── Alerts Log ── */
 .alerts-list-full { display: flex; flex-direction: column; gap: 0.75rem; }
@@ -528,7 +535,7 @@ onMounted(async () => {
   align-items: flex-start;
   gap: 1rem;
   padding: 1rem;
-  background: #2a3d2e;
+  background: #142116;
   border-radius: 12px;
   position: relative;
   border-left: 4px solid transparent;

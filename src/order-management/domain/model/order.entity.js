@@ -7,23 +7,25 @@ import { Fruit } from './fruit.entity.js';
  */
 export class Order {
     constructor({
-                    id = '',
-                    clientName = '',
-                    commercialClientId = '',
-                    selectedFruits = [],
-                    fruitType = '',
-                    quantity = '',
-                    status = '',
-                    statusClass = '',
-                    producer = '',
-                    producerId = null,
-                    product = '',
-                    volume = '',
-                    totalVolume = 0,
-                    totalAmount = 0,
-                    deliveryDueDate = null,
-                    cancelledAt = null
-                } = {}) {
+        id = '',
+        clientName = '',
+        commercialClientId = '',
+        selectedFruits = [],
+        fruitType = '',
+        quantity = '',
+        status = '',
+        statusClass = '',
+        producer = '',
+        producerId = null,
+        driver = '',
+        vehicle = '',
+        product = '',
+        volume = '',
+        totalVolume = 0,
+        totalAmount = 0,
+        deliveryDueDate = null,
+        cancelledAt = null
+    } = {}) {
         this.id = id;
         this.clientName = clientName;
         this.commercialClientId = commercialClientId;
@@ -34,6 +36,8 @@ export class Order {
         this.statusClass = statusClass;
         this.producer = producer;
         this.producerId = producerId;
+        this.driver = driver;
+        this.vehicle = vehicle;
         this.product = product;
         this.volume = volume;
         this.totalVolume = totalVolume;

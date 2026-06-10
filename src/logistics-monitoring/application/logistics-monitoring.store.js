@@ -11,9 +11,9 @@ const api = new LogisticsMonitoringApi();
  * Manages state for deliveries, tracking logs, and real-time monitoring.
  */
 export const useLogisticsMonitoringStore = defineStore('logistics-monitoring', () => {
-    /** @type {import('vue').Ref<import('../domain/model/delivery.entity.js').Delivery[]>} */
+    /** @type {import('src/logistics-monitoring/domain/model/delivery.entity.js').Ref<import('../domain/model/delivery.entity.js').Delivery[]>} */
     const deliveries = ref([]);
-    /** @type {import('vue').Ref<import('../domain/model/tracking-log.entity.js').TrackingLog[]>} */
+    /** @type {import('src/logistics-monitoring/domain/model/tracking-log.entity.js').Ref<import('../domain/model/tracking-log.entity.js').TrackingLog[]>} */
     const trackingLogs = ref([]);
     const isLoading = ref(false);
     const errors = ref([]);

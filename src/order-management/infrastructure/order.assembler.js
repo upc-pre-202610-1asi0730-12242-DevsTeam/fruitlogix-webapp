@@ -41,6 +41,8 @@ export class OrderAssembler {
             statusClass: entity.statusClass,
             producer: entity.producer,
             producerId: entity.producerId,
+            driver: entity.driver,
+            vehicle: entity.vehicle,
             product: entity.product,
             volume: entity.volume,
             totalVolume: entity.totalVolume,
