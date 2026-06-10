@@ -656,6 +656,13 @@ function showAssignDialog() {
   }
 }
 
+async function handleStatusChange({orderId, newStatus}) {
+  const order = orders.value.find(o => o.id === orderId);
+  if (!order) return;
+  const updatedOrder = {...order, status: newStatus, statusClass: statusClassFor(newStatus)};
+  await orderStore.updateOrder(orderId, updatedOrder);
+}
+
 async function confirmCancel() {
   if (order.value?.id) {
     await orderStore.deleteOrder(order.value.id);
