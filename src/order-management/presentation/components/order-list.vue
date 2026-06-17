@@ -75,7 +75,7 @@
 
         <pv-column field="producerId" header="Productor">
           <template #body="{ data }">
-            <span class="client-name">{{ data.producerId || 'Sin Asignar' }}</span>
+            <span class="client-name">{{ data.producerName || 'Sin Asignar' }}</span>
           </template>
         </pv-column>
 

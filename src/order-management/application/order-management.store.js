@@ -8,7 +8,9 @@ import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { OrderManagementApi } from '../infrastructure/order-management-api.js';
 import { OrderAssembler } from '../infrastructure/order.assembler.js';
+import { ProfilesAndVehiclesApi } from '../../profiles-and-vehicles/infrastructure/profiles-and-vehicles-api.js';
 
+const profilesApi = new ProfilesAndVehiclesApi();
 const orderManagementApi = new OrderManagementApi();
 
 /**
@@ -70,24 +72,45 @@ const useOrderManagementStore = defineStore('order-management', () => {
      * Loads orders from infrastructure and updates the application state.
      * @returns {Promise<void>}
      */
-    async function fetchOrders() { // O el nombre que tenga tu función
+    async function fetchOrders() {
+        this.ordersLoaded = false;
         try {
-            // Tu código original que llama a la API. Se verá algo parecido a esto:
-            const response = await orderManagementApi.getOrders();
-            orders.value = response.data; // O como mapees tu respuesta
+            // 1. Llamamos a los métodos con SUS NOMBRES CORRECTOS y al mismo tiempo
+            const [ordersResponse, producersResponse] = await Promise.all([
+                orderManagementApi.getOrders(),
+                orderManagementApi.getProducers()
+            ]);
 
-            // ✨ LO NUEVO: Después de recibir los datos, aplicamos nuestra memoria local
-            orders.value.forEach(order => {
-                const override = localStatusOverrides.value[order.id];
-                if (override) {
-                    // Si la orden está en nuestra memoria, pisamos lo que dijo C#
-                    order.status = override.status;
-                    order.statusClass = override.statusClass;
+            // Extraemos los datos
+            const rawOrders = ordersResponse.data || ordersResponse;
+            const rawProducers = producersResponse.data || producersResponse;
+
+            // 2. Creamos el diccionario de productores
+            const producerMap = {};
+            if (Array.isArray(rawProducers)) {
+                rawProducers.forEach(p => {
+                    producerMap[p.id] = p.legalName || p.fullName || p.name || 'Productor sin nombre';
+                });
+            }
+
+            // 3. Unimos la información
+            const ordersWithProducerNames = rawOrders.map(order => {
+                let prodName = 'Sin Asignar';
+                if (order.producerId) {
+                    prodName = producerMap[order.producerId] || `Productor #${order.producerId}`;
                 }
+                return {
+                    ...order,
+                    producerName: prodName
+                };
             });
 
+            // Guardamos la data procesada
+            this.orders = ordersWithProducerNames;
+            this.ordersLoaded = true;
+
         } catch (error) {
-            console.error("Error cargando órdenes:", error);
+            console.error("Error al cargar órdenes y productores:", error);
         }
     }
     /**
