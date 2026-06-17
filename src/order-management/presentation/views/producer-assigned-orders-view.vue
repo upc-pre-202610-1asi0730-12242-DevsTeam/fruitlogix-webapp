@@ -211,12 +211,14 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useOrderManagementStore } from '../../application/order-management.store.js';
+import { OrderManagementApi } from '../../infrastructure/order-management-api.js';
 
 const router = useRouter();
 const orderStore = useOrderManagementStore();
+const orderManagementApi = new OrderManagementApi();
 
-const selectedOrderId = ref('ORD-2024-003');
-const newMessage = ref(''); // 🟢 VARIABLE REACTIVA DEL MENSAJE NUEVO
+const selectedOrderId = ref(null);
+const newMessage = ref('');
 
 // 🟢 FUNCIÓN PARA IR AL CHAT GRANDE Y ENVIARLE EL ID DEL PEDIDO
 const goToFullChat = () => {
@@ -245,82 +247,42 @@ const sendMessage = () => {
 };
 
 // Sincronización e Inyección reactiva al montar la vista
+// Sincronización e Inyección reactiva al montar la vista
 onMounted(async () => {
-  if (!orderStore.ordersLoaded) {
+  try {
+    // 1. LLENAMOS EL STORE DE PINIA PRIMERO (Esto faltaba)
     await orderStore.fetchOrders();
-  }
-  
-  const mockOrdersToInject = [
-    { id: '089', client: 'Distribuidora Lima Sur', products: 'Mango Kent — 120 kg • Uva Red Globe — 50 kg', total: 170, status: 'ASSIGNED' },
-    { id: '085', client: 'AgroExport S.A.', products: 'Palta Hass — 200 kg', total: 200, status: 'IN_PREPARATION' },
-    { id: '082', client: 'EcoFrutas', products: 'Espárrago — 150 kg', total: 150, status: 'READY' }
-  ];
 
-  mockOrdersToInject.forEach(mock => {
-    if (!orderStore.getOrderById(mock.id)) {
-      orderStore.orders.push({
-        id: mock.id,
-        customerName: mock.client,
-        client: mock.client,
-        products: mock.products,
-        summary: mock.products,
-        totalAmount: mock.total,
-        deliveryDate: '5 jun. 2025',
-        status: mock.status,
-        driver: 'Carlos Ávila',
-        vehicle: 'ABC-123'
-      });
+    // producerId = 1 hardcodeado por ahora (sin IAM)
+    const PRODUCER_ID = 1;
+    const response = await orderManagementApi.getOrdersByProducer(PRODUCER_ID);
+    const realOrders = response.data;
+
+    visualOrders.value = realOrders.map(order => ({
+      id: String(order.id),
+      client: `Cliente #${order.commercialClientId}`,
+      productsDesc: order.items.map(i =>
+          `${i.productName} — ${i.quantityKg} kg`).join(' • '),
+      date: order.deliveryDueDate,
+      totalQty: `${order.items.reduce((s, i) => s + i.quantityKg, 0)} kg`,
+      productsList: order.items.map(i => i.productName).join(', '),
+      totalAmount: order.totalAmount,
+      status: order.status,
+      lotes: [],
+      chat: [],
+      rawStatus: order.status, // Aseguramos que guarde el rawStatus
+      realStoreId: order.id
+    }));
+
+    // Selecciona el primero por defecto
+    if (visualOrders.value.length > 0) {
+      selectedOrderId.value = visualOrders.value[0].id;
     }
-  });
-});
-
-const visualOrders = ref([
-  {
-    id: 'ORD-2024-003',
-    client: 'Distribuidora Lima Sur',
-    productsDesc: 'Mango Kent — 120 kg • Uva Red Globe — 50 kg',
-    date: '5 jun. 2025',
-    totalQty: '170 kg',
-    productsList: 'Mango Kent, Uva Red Globe',
-    lotes: [
-      { id: 'Lote #205', calibre: 'Calibre A', badge: 'badge-light-green', product: 'Mango Kent', qty: '120 kg', status: 'Aprobado', statusClass: 'status-ok' },
-      { id: 'Lote #206', calibre: 'Calibre B', badge: 'badge-light-orange', product: 'Uva Red Globe', qty: '50 kg', status: 'Pendiente QC', statusClass: 'status-warn' }
-    ],
-    chat: [
-      { sender: 'Distribuidor', text: 'Hola Carlos, ¿cómo va el lote de Mango?', class: 'received' },
-      { sender: 'Tú', text: 'Ya estamos empacando, sale mañana', class: 'sent' }
-    ]
-  },
-  {
-    id: 'ORD-2024-004',
-    client: 'AgroExport S.A.',
-    productsDesc: 'Palta Hass — 200 kg',
-    date: '6 jun. 2025',
-    totalQty: '200 kg',
-    productsList: 'Palta Hass',
-    lotes: [
-      { id: 'Lote #194', calibre: 'Calibre A', badge: 'badge-light-green', product: 'Palta Hass', qty: '200 kg', status: 'Aprobado', statusClass: 'status-ok' }
-    ],
-    chat: [
-      { sender: 'Distribuidor', text: 'Carlos, ¿podemos adelantar el empaque de palta?', class: 'received' },
-      { sender: 'Tú', text: 'Buenas tardes. Sí, ya estamos en la línea de lavado.', class: 'sent' }
-    ]
-  },
-  {
-    id: 'ORD-2024-005',
-    client: 'EcoFrutas',
-    productsDesc: 'Espárrago — 150 kg',
-    date: '4 jun. 2025',
-    totalQty: '150 kg',
-    productsList: 'Espárrago Verde Exportación',
-    lotes: [
-      { id: 'Lote #181', calibre: 'Calibre Premium', badge: 'badge-light-green', product: 'Espárragos', qty: '150 kg', status: 'Aprobado', statusClass: 'status-ok' }
-    ],
-    chat: [
-      { sender: 'Distribuidor', text: 'Lote aprobado por Control de Calidad del almacén central.', class: 'received' }
-    ]
+  } catch (err) {
+    console.warn('Error cargando órdenes del productor:', err.message);
   }
-]);
+});
+const visualOrders = ref([]);
 
 const getStoreStatus = (id) => {
   let storeId = id;
@@ -382,17 +344,49 @@ const goToFullDetail = () => {
 };
 
 const handleActionClick = () => {
-  if (!selectedOrder.value) return;
-  
+  if (!selectedOrder.value) {
+    console.log("No hay orden seleccionada");
+    return;
+  }
+
+  // Obtenemos tanto el estado de tu Store (Pinia) como el de la API C#
   const currentStatus = selectedOrder.value.rawStatus;
+  const apiStatus = selectedOrder.value.status;
   const targetId = selectedOrder.value.realStoreId;
-  
-  if (currentStatus === 'ASSIGNED' || currentStatus === 'Pendiente') {
-    orderStore.simulateProducerUpdateStatus(targetId, 'En Preparación', 'status-processing');
-  } else if (currentStatus === 'IN_PREPARATION' || currentStatus === 'En Preparación') {
-    orderStore.simulateProducerUpdateStatus(targetId, 'Listo Despacho', 'status-success');
+
+  console.log("Botón clickeado para la orden:", targetId);
+  console.log("Estado actual (Store):", currentStatus);
+  console.log("Estado actual (API):", apiStatus);
+
+  // Ampliamos la red para atrapar TODAS las posibles palabras o números que devuelva C# o Pinia
+  const isPending = ['ASSIGNED', 'Pendiente', 'Pending', 'PENDING', '0', 0].includes(currentStatus) ||
+      ['Pending', 'Pendiente', 'PENDIENTE PREPARACIÓN', 'PENDIENTE PREPARACIÓN', 0, '0'].includes(apiStatus);
+
+  const isPreparing = ['IN_PREPARATION', 'En Preparación', 'InPreparation', '1', 1].includes(currentStatus) ||
+      ['InPreparation', 'En Preparación', 'EN PREPARACIÓN', 1, '1'].includes(apiStatus);
+
+  if (isPending || isPreparing) {
+    console.log("Lógica aceptada. Navegando al reporte...");
+
+    if (isPending) {
+      orderStore.simulateProducerUpdateStatus(targetId, 'En Preparación', 'status-processing');
+    }
+
+    // ⚠️ ATENCIÓN AL ROUTER AQUÍ
+    router.push({
+      name: 'producer-inspecciones', // Cambiado a español por los logs de tu router
+      query: {
+        orderId: targetId,
+        product: selectedOrder.value.productsList || 'Mango Kent',
+        quantity: selectedOrder.value.totalQty || '1 kg'
+      }
+    }).catch(err => {
+      console.error("Error de Vue Router:", err);
+      alert("Error de navegación. Revisa la consola.");
+    });
+
   } else {
-    alert('Este lote ya se encuentra procesado.');
+    alert(`El botón no funciona porque el estado es: Store[${currentStatus}] / API[${apiStatus}]`);
   }
 };
 </script>

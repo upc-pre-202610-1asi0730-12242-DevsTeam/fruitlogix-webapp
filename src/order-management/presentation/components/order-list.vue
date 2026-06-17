@@ -60,8 +60,9 @@
         <pv-column field="clientName" header="Cliente">
           <template #body="{ data }">
             <div class="client-cell">
-              <span class="client-badge">{{ getInitials(data.clientName) }}</span>
-              <span class="client-name">{{ data.clientName }}</span>
+              <span class="client-badge">{{ getInitials(data.clientName || 'C ' + (data.commercialClientId || data.id)) }}</span>
+
+              <span class="client-name">{{ data.clientName ? data.clientName : 'Cliente #' + (data.commercialClientId || data.id) }}</span>
             </div>
           </template>
         </pv-column>
@@ -238,7 +239,7 @@ const orders = computed(() => orderStore.activeOrders);
 
 const filteredOrders = computed(() => {
   let result = orders.value;
-  
+
   if (activeStatusTab.value !== 'Todos') {
     result = result.filter(o => {
         const s = (o.status || '').toLowerCase();
@@ -295,22 +296,41 @@ function getInitials(name) {
 /** Resolves a printable fruit label from order shape (entity or raw JSON). */
 function getFruitLabelGroup(order) {
   if (!order) return '—';
-  const qty = order.quantity || '';
-  
-  const fruits = order.selectedFruits;
-  if (Array.isArray(fruits) && fruits.length > 0) {
-    const mainFruit = fruits[0].name;
-    const othersCount = fruits.length - 1;
+
+  // 1. LA MAGIA: Leemos la lista "items" que viene de tu API de C#
+  if (Array.isArray(order.items) && order.items.length > 0) {
+    const mainFruit = order.items[0].productName || 'Fruta';
+    const othersCount = order.items.length - 1;
+
+    // Sumamos los kilos de todos los items para tener el total exacto
+    const totalKg = order.items.reduce((sum, item) => sum + (item.quantityKg || 0), 0);
+    const qtyText = totalKg > 0 ? ` (${totalKg} kg)` : '';
+
     if (othersCount > 0) {
-        return `${mainFruit} + ${othersCount} frutas (${qty})`;
+      return `${mainFruit} + ${othersCount} frutas${qtyText}`;
     } else {
-        return `${mainFruit} (${qty})`;
+      return `${mainFruit}${qtyText}`;
     }
   }
-  if (order.product) return `${order.product} (${qty})`;
-  return order.fruitType ? `${order.fruitType} (${qty})` : '—';
-}
 
+  // 2. Fallbacks (por si acaso usas datos antiguos en alguna parte)
+  const qty = order.quantity ? ` (${order.quantity})` : '';
+
+  const fruits = order.selectedFruits;
+  if (Array.isArray(fruits) && fruits.length > 0) {
+    const mainFruit = fruits[0].name || 'Fruta';
+    const othersCount = fruits.length - 1;
+    return othersCount > 0 ? `${mainFruit} + ${othersCount} frutas${qty}` : `${mainFruit}${qty}`;
+  }
+
+  const name = order.productName || order.product || order.fruitType;
+  if (name) {
+    return `${name}${qty}`;
+  }
+
+  // Si de verdad llega vacío
+  return `Lote de Fruta${qty}`;
+}
 /** Navigates to the order detail view. */
 function goToOrderDetail(event) {
   const order = event.data;

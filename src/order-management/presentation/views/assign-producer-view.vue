@@ -179,7 +179,7 @@ const deliveryDate = computed(() => {
 // Producers Mock Data
 const producers = ref([
   {
-    id: 'p1',
+    id: 1,
     name: 'Finca Los Andes',
     location: 'Huaral, Lima',
     rating: 4.8,
@@ -193,7 +193,7 @@ const producers = ref([
     ]
   },
   {
-    id: 'p2',
+    id: 2,
     name: 'Hacienda El Sol',
     location: 'Chancay, Lima',
     rating: 4.5,

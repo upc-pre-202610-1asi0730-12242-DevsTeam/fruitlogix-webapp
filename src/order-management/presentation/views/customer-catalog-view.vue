@@ -101,13 +101,15 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
+<script setup>
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCartStore } from '../../application/cart.store';
 import { useI18n } from 'vue-i18n';
-import { useOrderManagementStore } from '../../application/order-management.store.js';
+
+// --- NUEVO: Importamos el API real de Render y el Traductor ---
+import { OrderManagementApi } from '../../infrastructure/order-management-api.js'; // Ajusta la ruta si es necesario
+import { OrderAssembler } from '../../infrastructure/order.assembler.js'; // Ajusta la ruta si es necesario
 
 const { t } = useI18n();
 const cartStore = useCartStore();
@@ -115,7 +117,9 @@ const router = useRouter();
 const showOrderModal = ref(false);
 const deliveryAddress = ref('');
 const deliveryDate = ref('');
-const orderStore = useOrderManagementStore();
+
+// --- NUEVO: Instanciamos el servicio del API ---
+const orderManagementApi = new OrderManagementApi();
 
 const minDate = computed(() => {
   const d = new Date(); d.setDate(d.getDate() + 1);
@@ -138,37 +142,63 @@ const selectedCategory = ref('Todos');
 const filteredProducts = computed(() => selectedCategory.value === 'Todos' ? products.value : products.value.filter(p => p.category === selectedCategory.value));
 const cartItemNames = computed(() => cartStore.items.slice(0, 3).map(i => i.product.name).join(', ') + (cartStore.items.length > 3 ? ` y ${cartStore.items.length - 3} más` : ''));
 
-function getCartQuantity(productId: number) { return cartStore.items.find(i => i.product.id === productId)?.quantity || 0; }
-function addProduct(product: any) { cartStore.addToCart(product, 1); }
-function increaseQty(product: any) { cartStore.addToCart(product, 1); }
-function decreaseQty(product: any) {
+// --- CORREGIDO: Eliminados los tipados de TypeScript de los parámetros ---
+function getCartQuantity(productId) { return cartStore.items.find(i => i.product.id === productId)?.quantity || 0; }
+function addProduct(product) { cartStore.addToCart(product, 1); }
+function increaseQty(product) { cartStore.addToCart(product, 1); }
+function decreaseQty(product) {
   const qty = getCartQuantity(product.id);
   if (qty <= 1) cartStore.removeFromCart(product.id);
   else cartStore.updateQuantity(product.id, qty - 1);
 }
 function continueToOrder() { showOrderModal.value = true; }
-function confirmOrder() {
+
+// --- ACTUALIZADO: Conexión Real con Render a través de Async/Await ---
+async function confirmOrder() {
   if (!deliveryAddress.value || !deliveryDate.value) return;
 
-  // 1. Lógica local del carrito
-  const order = cartStore.placeOrder(deliveryAddress.value, deliveryDate.value);
+  // 1. Armamos el objeto en el formato local que tu UI maneja
+  const orderEntity = {
+    commercialClientId: 1, // ID estático para pruebas (luego usará el del usuario logueado)
+    deliveryDueDate: deliveryDate.value,
+    deliveryAddress: deliveryAddress.value,
+    totalAmount: cartStore.total,
+    instructions: '',
+    selectedFruits: cartStore.items.map(item => ({
+      id: item.product.id,
+      name: item.product.name,
+      quantity: item.quantity,
+      price: item.product.price,
+      subtotal: item.product.price * item.quantity
+    }))
+  };
 
-  // 2. Conexión de simulación global
-  orderStore.simulateCustomerCheckout({
-    customerName: 'Distribuidora Lima Sur', 
-    itemsSummary: cartItemNames.value,      
-    total: cartStore.total,                 
-    date: deliveryDate.value                
-  });
+  try {
+    // 2. Pasamos el objeto por el Assembler inteligente para que lo traduzca al idioma de C#
+    const apiPayload = OrderAssembler.toApi(orderEntity);
 
-  // 3. Limpieza y redirección
-  showOrderModal.value = false;
-  deliveryAddress.value = '';
-  deliveryDate.value = '';
-  router.push({ name: 'customer-payment', params: { orderId: order.id } });
+    // 3. Enviamos la petición POST real a tu servidor de Render
+    await orderManagementApi.createOrder(apiPayload);
+
+    // 4. Si la base de datos lo guarda con éxito, limpiamos el carrito local
+    if (cartStore.items) {
+      cartStore.items = []; // Vacía la lista de compras del Pinia Store
+    }
+
+    // 5. Cerramos el modal y limpiamos variables de control
+    showOrderModal.value = false;
+    deliveryAddress.value = '';
+    deliveryDate.value = '';
+
+    // 6. Redireccionamos al cliente directo a la lista de "Mis Pedidos" para ver el registro real
+    router.push('/customer/orders');
+
+  } catch (error) {
+    console.error("Error crítico al guardar la orden en Render:", error);
+    alert("No se pudo procesar tu pedido en el servidor. Por favor, revisa la consola de desarrollo.");
+  }
 }
 </script>
-
 <style scoped>
 .catalog-page { padding: 32px; padding-bottom: 120px; min-height: 100vh; background: #E1EBE1; }
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; gap: 20px; flex-wrap: wrap; }

@@ -25,16 +25,16 @@
     <div class="content-grid">
       <!-- Left Column: Form Forms -->
       <div class="form-column">
-        
-        <h1 class="page-title">Reporte de Calidad — Lote #205</h1>
+
+        <h1 class="page-title">Reporte de Calidad — Lote #{{ currentOrderId }}</h1>
         
         <!-- Metadata Tags Section (Cleaned from Emojis) -->
         <div class="tags-container">
           <span class="tag">
-            <i class="pi pi-tag tag-icon"></i> Mango Kent
+            <i class="pi pi-tag tag-icon"></i> {{ productName }}
           </span>
           <span class="tag">
-            <i class="pi pi-database tag-icon"></i> 150 kg
+            <i class="pi pi-database tag-icon"></i> {{ quantity }}
           </span>
           <span class="tag">
             <i class="pi pi-sliders-h tag-icon"></i> Calibre A
@@ -67,20 +67,20 @@
             <label>Defectos visibles</label>
             <div class="checkbox-grid">
               <label class="checkbox-label">
-                <input type="checkbox" /> Manchas
+                <input type="checkbox" v-model="hasStains" /> Manchas
               </label>
               <label class="checkbox-label">
-                <input type="checkbox" /> Golpes
+                <input type="checkbox" v-model="hasBruises" /> Golpes
               </label>
               <label class="checkbox-label">
-                <input type="checkbox" /> Deformaciones
+                <input type="checkbox" v-model="hasDeformations" /> Deformaciones
               </label>
               <label class="checkbox-label">
-                <input type="checkbox" /> Podredumbre
+                <input type="checkbox" v-model="hasRot" /> Podredumbre
               </label>
             </div>
             <label class="checkbox-label checked-none">
-              <input type="checkbox" checked /> Ninguno
+              <input type="checkbox" :checked="!hasStains && !hasBruises && !hasDeformations && !hasRot" disabled /> Ninguno
             </label>
           </div>
 
@@ -103,32 +103,32 @@
               <i class="pi pi-refresh" style="font-size: 0.8rem; margin-right: 4px;"></i> Autocompletar con sensor
             </button>
           </div>
-          
+
           <div class="inputs-grid">
             <div class="input-group">
               <label>Temperatura</label>
               <div class="input-with-suffix">
-                <input type="text" value="12" />
+                <input type="number" v-model="temperature" />
                 <span class="suffix">°C</span>
               </div>
             </div>
             <div class="input-group">
               <label>Humedad</label>
               <div class="input-with-suffix">
-                <input type="text" value="85" />
+                <input type="number" v-model="humidity" />
                 <span class="suffix">%</span>
               </div>
             </div>
             <div class="input-group">
               <label>pH</label>
               <div class="input-with-suffix">
-                <input type="text" value="4.2" />
+                <input type="number" step="0.1" v-model="phLevel" />
               </div>
             </div>
             <div class="input-group">
               <label>Brix</label>
               <div class="input-with-suffix">
-                <input type="text" value="14.5" />
+                <input type="number" step="0.1" v-model="brix" />
                 <span class="suffix">°Bx</span>
               </div>
             </div>
@@ -141,7 +141,7 @@
             <i class="pi pi-file status-icon-native"></i>
             <div class="status-text">
               <h4>Estándares del cliente</h4>
-              <p>(Order #089)</p>
+              <p>(Order #{{ currentOrderId }})</p>
             </div>
           </div>
           <div class="status-card green-card">
@@ -168,15 +168,15 @@
               <i class="pi pi-image" style="color: #9ab39d; font-size: 1.4rem;"></i>
             </div>
             <div class="product-info">
-              <h3>Mango Kent</h3>
-              <p>Cosecha Lote #205</p>
+              <h3>{{ productName }}</h3>
+              <p>Cosecha Lote #{{ currentOrderId }}</p>
             </div>
           </div>
 
           <div class="summary-list">
             <div class="summary-item">
               <span class="label">Cantidad Total</span>
-              <span class="value">150 kg</span>
+              <span class="value">{{ quantity }}</span>
             </div>
             <div class="summary-item">
               <span class="label">Calibre Predominante</span>
@@ -242,14 +242,100 @@
       <button class="btn-text">
         <i class="pi pi-arrow-left" style="font-size: 0.85rem; margin-right: 6px;"></i> Volver
       </button>
-      <button class="btn-primary">
+      <button class="btn-primary" @click="submitQualityReport">
         Enviar Reporte al Distribuidor <i class="pi pi-arrow-right" style="font-size: 0.85rem; margin-left: 6px;"></i>
       </button>
     </div>
   </div>
 </template>
-
 <script setup>
+import { ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+
+// 1. Importación NORMAL estática (sin await)
+import { QualityControlApi } from '../../infrastructure/quality-control-api.js';
+import { useOrderManagementStore } from '../../../order-management/application/order-management.store.js';
+
+const route = useRoute();
+const router = useRouter();
+const qualityApi = new QualityControlApi();
+
+// 2. Instanciamos el store (sin await, sin fetchOrders aquí)
+const orderStore = useOrderManagementStore();
+
+// Capturamos el ID de la URL (si no hay, usamos 1 por defecto para pruebas)
+const currentOrderId = ref(route.query.orderId || 1);
+// Capturamos los datos de la URL
+const productName = ref(route.query.product || 'Mango Kent');
+const quantity = ref(route.query.quantity || '150 kg');
+
+// Variables reactivas para el formulario (con valores por defecto MVP)
+const appearanceRating = ref(4);
+const hasStains = ref(false);
+const hasBruises = ref(false);
+const hasDeformations = ref(false);
+const hasRot = ref(false);
+const wastePercentage = ref(3);
+const temperature = ref(12);
+const humidity = ref(85);
+const phLevel = ref(4.2);
+const brix = ref(14.5);
+
+const dryCleaningDone = ref(true);
+const caliberSortingConfirmed = ref(true);
+const packagingMaterialInspected = ref(true);
+const finalBoxSealing = ref(false);
+
+const setRating = (val) => {
+  appearanceRating.value = val;
+};
+
+const goBack = () => {
+  router.back();
+};
+
+const submitQualityReport = async () => {
+  // 1. Construimos el JSON
+  const payload = {
+    batchId: parseInt(currentOrderId.value),
+    notes: "Reporte de calidad documentado exitosamente.",
+    appearanceRating: appearanceRating.value,
+    hasStains: hasStains.value,
+    hasBruises: hasBruises.value,
+    hasDeformations: hasDeformations.value,
+    hasRot: hasRot.value,
+    wastePercentage: parseFloat(wastePercentage.value),
+    temperatureCelsius: parseFloat(temperature.value),
+    humidityPercent: parseFloat(humidity.value),
+    ph: parseFloat(phLevel.value),
+    brixDegrees: parseFloat(brix.value),
+    dryCleaningDone: dryCleaningDone.value,
+    caliberSortingConfirmed: caliberSortingConfirmed.value,
+    packagingMaterialInspected: packagingMaterialInspected.value,
+    finalBoxSealing: finalBoxSealing.value
+  };
+
+  try {
+    // 1. Guardamos el reporte en la base de datos (Esto funciona)
+    await qualityApi.createQualityInspection(payload);
+
+    // 2. Forzamos la actualización en el Store de la otra pantalla
+    orderStore.simulateProducerUpdateStatus(
+        currentOrderId.value,
+        'Listo Despacho',
+        'status-ready'
+    );
+
+    alert("¡Reporte de calidad enviado con éxito!");
+
+    // 3. En vez de back(), hacemos push directo a la vista de pedidos
+    router.push({ name: 'producer-mis-pedidos' }); // Asegúrate que este nombre es el correcto en tu router.js
+
+  } catch (error) {
+    console.error("Error al enviar el reporte:", error);
+    alert("Hubo un error al enviar el reporte. Revisa la consola.");
+  }
+};
 </script>
 
 <style scoped>

@@ -3,7 +3,7 @@
     <transition name="fade">
       <div class="drawer-overlay" v-if="isQualityReportOpen" @click="isQualityReportOpen = false"></div>
     </transition>
-    
+
     <transition name="slide-drawer">
       <aside class="quality-drawer" v-if="isQualityReportOpen" @click.stop>
         <div class="drawer-accent"></div>
@@ -20,12 +20,19 @@
           </div>
           <div class="drawer-header-right">
             <span class="drawer-badge-main">REPORTE RECIBIDO</span>
-            <span class="drawer-time">Enviado hace 12 min</span>
+            <span class="drawer-time">Datos verificados</span>
           </div>
         </header>
 
-        <div class="drawer-content">
-          
+        <!-- Estado de Carga -->
+        <div v-if="isLoadingQuality" class="drawer-content" style="align-items: center; justify-content: center;">
+          <i class="pi pi-spin pi-spinner" style="font-size: 2.5rem; color: #c9e265; margin-bottom: 1rem;"></i>
+          <p style="color: #8fba8f; font-weight: 600;">Descargando reporte de la base de datos...</p>
+        </div>
+
+        <!-- Contenido Real del Reporte -->
+        <div v-else class="drawer-content">
+
           <section class="drawer-section">
             <div class="section-heading-row">
               <h3 class="section-heading"><i class="pi pi-verified"></i> Resumen por Producto</h3>
@@ -33,41 +40,27 @@
             <div class="info-card no-margin">
               <table class="products-table">
                 <thead>
-                  <tr>
-                    <th>PRODUCTO</th>
-                    <th>KG APROB.</th>
-                    <th>KG RECHAZ.</th>
-                    <th>% CALIDAD</th>
-                    <th>RESULTADO</th>
-                  </tr>
+                <tr>
+                  <th>PRODUCTO</th>
+                  <th>KG APROB.</th>
+                  <th>KG RECHAZ.</th>
+                  <th>% CALIDAD</th>
+                  <th>RESULTADO</th>
+                </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td class="product-name">Mango Kent</td>
-                    <td>195 kg</td>
-                    <td>5 kg</td>
-                    <td style="color: #1bb37e; font-weight: 800;">97.5%</td>
-                    <td><span class="status-pill-header pill-delivered">✓ Aprobado</span></td>
-                  </tr>
-                  <tr>
-                    <td class="product-name">Uva Red Globe</td>
-                    <td>140 kg</td>
-                    <td>10 kg</td>
-                    <td style="color: #e5b95e; font-weight: 800;">93.3%</td>
-                    <td><span class="status-pill-header pill-transit">⚠ Parcial</span></td>
-                  </tr>
-                  <tr>
-                    <td class="product-name">Naranja Valencia</td>
-                    <td>95 kg</td>
-                    <td>35 kg</td>
-                    <td style="color: #f87171; font-weight: 800;">73.1%</td>
-                    <td><span class="status-pill-header pill-cancelled" style="text-decoration:none">✗ Rechazado</span></td>
-                  </tr>
+                <tr v-for="fruit in productsList" :key="fruit.name">
+                  <td class="product-name">{{ fruit.name }}</td>
+                  <td>{{ calculateApproved(fruit.qty, qualityReport?.wastePercentage) }} kg</td>
+                  <td>{{ calculateRejected(fruit.qty, qualityReport?.wastePercentage) }} kg</td>
+                  <td style="color: #1bb37e; font-weight: 800;">{{ 100 - (qualityReport?.wastePercentage || 0) }}%</td>
+                  <td><span class="status-pill-header pill-delivered">✓ Evaluado</span></td>
+                </tr>
                 </tbody>
               </table>
               <div class="table-summary-strip">
                 <i class="pi pi-exclamation-triangle"></i>
-                Total aprobado: 430 kg de 480 kg · Calidad promedio: 89.6%
+                Merma calculada basada en el {{ qualityReport?.wastePercentage || 0 }}% de rechazo reportado por el productor.
               </div>
             </div>
           </section>
@@ -75,43 +68,43 @@
           <section class="drawer-section">
             <div class="section-heading-row">
               <h3 class="section-heading"><i class="pi pi-chart-bar"></i> Parámetros Técnicos</h3>
-              <span class="status-pill-header pill-assigned">Vía sensor</span>
+              <span class="status-pill-header pill-assigned">Datos de Inspección</span>
             </div>
             <div class="info-card no-margin">
               <table class="products-table">
                 <thead>
-                  <tr>
-                    <th>PARÁMETRO</th>
-                    <th>RECIBIDO</th>
-                    <th>RANGO ACEPTABLE</th>
-                    <th>ESTADO</th>
-                  </tr>
+                <tr>
+                  <th>PARÁMETRO</th>
+                  <th>RECIBIDO</th>
+                  <th>RANGO ACEPTABLE</th>
+                  <th>ESTADO</th>
+                </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td>Temperatura</td>
-                    <td class="total-value">4.2°C</td>
-                    <td>2°C – 6°C</td>
-                    <td><i class="pi pi-check-circle" style="color: #1bb37e; font-size: 1.1rem;"></i></td>
-                  </tr>
-                  <tr>
-                    <td>Humedad</td>
-                    <td class="total-value">91%</td>
-                    <td>85% – 92%</td>
-                    <td><i class="pi pi-check-circle" style="color: #1bb37e; font-size: 1.1rem;"></i></td>
-                  </tr>
-                  <tr>
-                    <td>Brix (dulzor)</td>
-                    <td class="total-value">14.5 °Bx</td>
-                    <td>13 – 17 °Bx</td>
-                    <td><i class="pi pi-check-circle" style="color: #1bb37e; font-size: 1.1rem;"></i></td>
-                  </tr>
-                  <tr>
-                    <td>pH</td>
-                    <td class="total-value">3.8</td>
-                    <td>3.5 – 4.2</td>
-                    <td><i class="pi pi-check-circle" style="color: #1bb37e; font-size: 1.1rem;"></i></td>
-                  </tr>
+                <tr>
+                  <td>Temperatura</td>
+                  <td class="total-value">{{ qualityReport?.temperatureCelsius ?? '--' }}°C</td>
+                  <td>2°C – 15°C</td>
+                  <td><i class="pi pi-check-circle" style="color: #1bb37e; font-size: 1.1rem;"></i></td>
+                </tr>
+                <tr>
+                  <td>Humedad</td>
+                  <td class="total-value">{{ qualityReport?.humidityPercent ?? '--' }}%</td>
+                  <td>85% – 95%</td>
+                  <td><i class="pi pi-check-circle" style="color: #1bb37e; font-size: 1.1rem;"></i></td>
+                </tr>
+                <tr>
+                  <td>Brix (dulzor)</td>
+                  <td class="total-value">{{ qualityReport?.brixDegrees ?? '--' }} °Bx</td>
+                  <td>13 – 17 °Bx</td>
+                  <td><i class="pi pi-check-circle" style="color: #1bb37e; font-size: 1.1rem;"></i></td>
+                </tr>
+                <tr>
+                  <td>pH</td>
+                  <td class="total-value">{{ qualityReport?.ph ?? '--' }}</td>
+                  <td>3.5 – 4.5</td>
+                  <td><i class="pi pi-check-circle" style="color: #1bb37e; font-size: 1.1rem;"></i></td>
+                </tr>
                 </tbody>
               </table>
             </div>
@@ -120,27 +113,21 @@
           <section class="drawer-section">
             <div class="section-heading-row">
               <h3 class="section-heading"><i class="pi pi-camera"></i> Evidencia Fotográfica</h3>
-              <span class="delivery-sub">3 fotos</span>
+              <span class="delivery-sub">Registro Visual</span>
             </div>
-<div class="photo-grid">
-              <div class="photo-item">
-                <img src="../../../assets/mango.jpg" alt="Mango">
-                <p>Mango Kent — vista general</p>
-              </div>
-              
-              <div class="photo-item">
-                <img src="../../../assets/mango_1.jpeg" alt="Clasificación">
-                <p>Clasificación por calibre</p>
-              </div>
-              
-              <div class="photo-item">
-                <img src="../../../assets/empaque.jpg" alt="Empaque">
-                <p>Empaque final sellado</p>
-              </div>
-              
+            <div class="photo-grid">
+              <!-- Reemplaza con tus imágenes reales de assets si las tienes -->
               <div class="photo-placeholder">
-                <i class="pi pi-plus"></i>
-                <p>Sin foto</p>
+                <i class="pi pi-image" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
+                <p>Vista General</p>
+              </div>
+              <div class="photo-placeholder">
+                <i class="pi pi-image" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
+                <p>Clasificación</p>
+              </div>
+              <div class="photo-placeholder">
+                <i class="pi pi-image" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
+                <p>Empaque</p>
               </div>
             </div>
           </section>
@@ -150,7 +137,7 @@
               <h3 class="section-heading"><i class="pi pi-file-edit"></i> Notas del Productor</h3>
             </div>
             <div class="producer-notes">
-              <p>"El lote de naranja Valencia presentó mayor merma de lo esperado debido a las lluvias de la semana pasada. Las unidades rechazadas fueron separadas antes del empaque."</p>
+              <p>"{{ qualityReport?.notes || 'No se registraron observaciones adicionales durante la inspección de este lote.' }}"</p>
               <span class="delivery-sub">— {{ producerName }}</span>
             </div>
           </section>
@@ -214,7 +201,8 @@
             <div class="meta-item">
               <span class="meta-label">Cliente</span>
               <div class="meta-value client-row">
-                <i class="pi pi-building"></i> {{ order.clientName || '—' }}
+                <i class="pi pi-building"></i>
+                {{ order.clientName ? order.clientName : 'Cliente #' + order.commercialClientId }}
               </div>
             </div>
             <div class="meta-item">
@@ -253,20 +241,20 @@
             </div>
             <table class="products-table">
               <thead>
-                <tr>
-                  <th>Producto</th>
-                  <th>Cant.</th>
-                  <th>$/kg</th>
-                  <th>Subtotal</th>
-                </tr>
+              <tr>
+                <th>Producto</th>
+                <th>Cant.</th>
+                <th>$/kg</th>
+                <th>Subtotal</th>
+              </tr>
               </thead>
               <tbody>
-                <tr v-for="fruit in productsList" :key="fruit.name">
-                  <td class="product-name">{{ fruit.name }}</td>
-                  <td>{{ fruit.qty }}</td>
-                  <td>{{ fruit.price }}</td>
-                  <td>{{ fruit.subtotal }}</td>
-                </tr>
+              <tr v-for="fruit in productsList" :key="fruit.name">
+                <td class="product-name">{{ fruit.name }}</td>
+                <td>{{ fruit.qty }}</td>
+                <td>{{ fruit.price }}</td>
+                <td>{{ fruit.subtotal }}</td>
+              </tr>
               </tbody>
             </table>
             <div class="total-row">
@@ -386,7 +374,8 @@
                 <span class="quality-title">Control de Calidad</span>
                 <span class="quality-status">Estado: {{ qualityStatus }}</span>
               </div>
-              <button class="action-btn outline btn-reporte" @click="isQualityReportOpen = true">
+              <!-- 🟢 BOTÓN QUE ACTIVA LA LLAMADA A LA API -->
+              <button class="action-btn outline btn-reporte" @click="openQualityReport">
                 Ver Reporte
               </button>
             </div>
@@ -488,7 +477,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useOrderManagementStore } from '../../application/order-management.store.js';
 
@@ -501,6 +490,10 @@ const isCancelConfirmVisible = ref(false);
 
 // 🟢 CONTROL DEL DRAWER DE CALIDAD
 const isQualityReportOpen = ref(false);
+
+// 🌟 NUEVO: Variables para guardar los datos reales del reporte de C#
+const qualityReport = ref(null);
+const isLoadingQuality = ref(false);
 
 const order = computed(() => {
   const id = route.params.id;
@@ -517,9 +510,67 @@ onMounted(async () => {
 function goBack() {
   router.push({ name: 'order-list' });
 }
+async function openQualityReport() {
+  isQualityReportOpen.value = true;
 
-// ── Computed helpers ──
+  if (!order.value?.id) return;
 
+  isLoadingQuality.value = true;
+  try {
+    // Usamos la ruta exacta de tu Swagger para buscar por batchId
+    const url = `https://fruitlogix-platform.onrender.com/api/v1/quality-inspections/batch/${order.value.id}`;
+    console.log("Consultando API real:", url);
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`El backend respondió con estado ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    const rawData = Array.isArray(data) ? data[0] : data;
+
+    // Asignamos la data desempacada a tu pantalla
+    qualityReport.value = {
+      temperatureCelsius: rawData.technicalParameters?.temperatureCelsius ?? '--',
+      humidityPercent: rawData.technicalParameters?.humidityPercent ?? '--',
+      brixDegrees: rawData.technicalParameters?.brixDegrees ?? '--',
+      ph: rawData.technicalParameters?.ph ?? '--',
+      wastePercentage: rawData.visualInspection?.wastePercentage ?? 0,
+      notes: rawData.notes || 'Sin observaciones adicionales.'
+    };
+
+    console.log("Datos desempacados listos para la pantalla:", qualityReport.value);
+
+  } catch (error) {
+    console.error("Error al obtener el reporte real:", error);
+
+    qualityReport.value = {
+      temperatureCelsius: '--',
+      humidityPercent: '--',
+      brixDegrees: '--',
+      ph: '--',
+      wastePercentage: 0,
+      notes: "No se encontró un reporte de calidad en la base de datos para este lote."
+    };
+  } finally {
+    isLoadingQuality.value = false;
+  }
+}
+const calculateApproved = (qtyString, wastePct) => {
+  const total = parseFloat(qtyString) || 0;
+  const waste = total * ((wastePct || 0) / 100);
+  return (total - waste).toFixed(1);
+};
+
+const calculateRejected = (qtyString, wastePct) => {
+  const total = parseFloat(qtyString) || 0;
+  return (total * ((wastePct || 0) / 100)).toFixed(1);
+};
+
+
+// ── Computed helpers (Tus computed originales) ──
 const statusLabel = computed(() => {
   if (!order.value?.producerId) return 'Sin Asignar';
   const s = order.value?.status;
@@ -548,9 +599,7 @@ const isQualityApproved = computed(() => {
 
 const qualityStatus = computed(() => isQualityApproved.value ? 'Aprobado' : 'Pendiente');
 
-const creationDate = computed(() => {
-  return '22 Oct 2026';
-});
+const creationDate = computed(() => '22 Oct 2026');
 
 const deliveryDate = computed(() => {
   const raw = order.value?.deliveryDueDate;
@@ -560,9 +609,7 @@ const deliveryDate = computed(() => {
   return d.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' });
 });
 
-const deliveryAddress = computed(() => {
-  return 'Calle Mayor 12, Lima';
-});
+const deliveryAddress = computed(() => 'Calle Mayor 12, Lima');
 
 const totalAmount = computed(() => {
   const amt = Number(order.value?.totalAmount ?? 0);
@@ -575,13 +622,13 @@ const producerLocation = computed(() => 'Valle de San Lorenzo, Piura');
 const producerPhone = computed(() => '+51 987 654 321');
 
 const productsList = computed(() => {
-  const fruits = order.value?.selectedFruits;
+  const fruits = order.value?.items || order.value?.selectedFruits;
   if (Array.isArray(fruits) && fruits.length > 0) {
     return fruits.map(f => ({
-      name: f.name || '—',
-      qty: `${Number(f.quantity || 0).toLocaleString('es-PE')}kg`,
-      price: `$${(f.pricePerKg || 2.50).toFixed(2)}`,
-      subtotal: `$${(Number(f.quantity || 0) * (f.pricePerKg || 2.50)).toFixed(0)}`
+      name: f.productName || f.name || '—',
+      qty: `${Number(f.quantityKg || f.quantity || 0)}`,
+      price: `$${(f.unitPrice || f.pricePerKg || 2.50).toFixed(2)}`,
+      subtotal: `$${(Number(f.quantityKg || f.quantity || 0) * (f.unitPrice || f.pricePerKg || 2.50)).toFixed(0)}`
     }));
   }
   const name = order.value?.product || order.value?.fruitType || 'Producto';
@@ -638,7 +685,7 @@ const timelineSteps = computed(() => {
     steps[0].completed = true; steps[0].pending = false;
     steps[1].current = true; steps[1].pending = false;
   }
-  
+
   return steps;
 });
 
@@ -657,9 +704,9 @@ function showAssignDialog() {
 }
 
 async function handleStatusChange({orderId, newStatus}) {
-  const order = orders.value.find(o => o.id === orderId);
+  const order = orderStore.orders.find(o => o.id === orderId);
   if (!order) return;
-  const updatedOrder = {...order, status: newStatus, statusClass: statusClassFor(newStatus)};
+  const updatedOrder = {...order, status: newStatus};
   await orderStore.updateOrder(orderId, updatedOrder);
 }
 
@@ -673,47 +720,36 @@ async function confirmCancel() {
 </script>
 
 <style scoped>
+/* TUS ESTILOS SE MANTIENEN INTACTOS */
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800;900&display=swap');
 
 .detail-wrapper { padding: 1.5rem 2rem; background: #e8f5e4; min-height: 100vh; font-family: 'DM Sans', sans-serif; box-sizing: border-box; }
-
-/* ── Back Nav ── */
 .back-nav { margin-bottom: 1.25rem; }
 .back-btn { background: transparent; border: none; color: #1a3020; font-family: 'DM Sans', sans-serif; font-size: 1.1rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 0.6rem; padding: 0; transition: color 0.15s; }
 .back-btn:hover { color: #4a6b4a; }
 .back-btn i { font-size: 0.9rem; }
-
-/* ── Loading/Empty states ── */
 .loading-state, .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 5rem 2rem; text-align: center; }
 .loading-icon { font-size: 2.5rem; color: #c9e265; margin-bottom: 1rem; }
 .empty-icon { font-size: 3rem; color: #3d5c42; margin-bottom: 1rem; }
 .empty-title { font-size: 1.2rem; font-weight: 800; color: #1a3020; margin-bottom: 0.3rem; }
 .empty-sub { font-size: 0.85rem; color: #4a6b4a; margin-bottom: 1.5rem; }
 .back-list-btn { background: #c9e265; color: #122216; border: none; padding: 0.7rem 1.5rem; border-radius: 8px; font-weight: 700; font-family: 'DM Sans', sans-serif; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; }
-
-/* ── Header Card ── */
 .header-card { background: #1e2d22; border-radius: 16px; padding: 1.5rem 1.75rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 2rem; margin-bottom: 1.5rem; border: 1px solid #2a3d2e; }
 .header-left { flex: 1; }
 .order-id-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
 .order-id { font-size: 1.75rem; font-weight: 900; color: #e0ead0; margin: 0; letter-spacing: -0.02em; }
-
-/* Status pills in header */
 .status-pill-header { padding: 0.35rem 0.85rem; border-radius: 6px; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; }
 .pill-pending { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.35); }
 .pill-assigned { background: rgba(96, 165, 250, 0.15); color: #93c5fd; border: 1px solid rgba(96, 165, 250, 0.35); }
 .pill-transit { background: rgba(212, 163, 75, 0.12); color: #e5b95e; border: 1px solid rgba(212, 163, 75, 0.45); }
 .pill-delivered { background: rgba(27, 179, 126, 0.15); color: #1bb37e; border: 1px solid rgba(27, 179, 126, 0.35); }
 .pill-cancelled { background: rgba(120, 113, 108, 0.18); color: #a8a29e; border: 1px solid rgba(120, 113, 108, 0.45); text-decoration: line-through; }
-
-/* Meta Grid */
 .meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
 .meta-item { display: flex; flex-direction: column; gap: 0.25rem; }
 .meta-label { font-size: 0.65rem; font-weight: 700; color: #6b8a6b; letter-spacing: 0.1em; text-transform: uppercase; }
 .meta-value { font-size: 0.9rem; font-weight: 600; color: #e0ead0; }
 .client-row { display: flex; align-items: center; gap: 0.4rem; }
 .client-row i { color: #c9e265; font-size: 0.85rem; }
-
-/* Header right */
 .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.85rem; }
 .header-actions { display: flex; gap: 0.65rem; }
 .action-btn { padding: 0.6rem 1.1rem; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.15s; }
@@ -725,17 +761,11 @@ async function confirmCancel() {
 .payment-row i { color: #c9e265; font-size: 0.9rem; }
 .payment-label { font-size: 0.78rem; font-weight: 700; color: #c9e265; }
 .link-btn { background: transparent; border: none; color: #e0ead0; font-size: 0.78rem; font-weight: 600; cursor: pointer; text-decoration: underline; font-family: 'DM Sans', sans-serif; }
-
-/* ── Body Grid ── */
 .body-grid { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 1.25rem; align-items: start; }
-
-/* ── Info Cards ── */
 .info-card { background: #1e2d22; border: 1px solid #2a3d2e; border-radius: 14px; padding: 1.25rem; margin-bottom: 1.25rem; }
 .card-title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
 .card-title { font-size: 1.05rem; font-weight: 800; color: #e0ead0; margin: 0; }
 .card-icon { color: #6b8a6b; font-size: 1rem; }
-
-/* ── Products Table ── */
 .products-table { width: 100%; border-collapse: collapse; margin-bottom: 0.85rem; }
 .products-table th { text-align: left; font-size: 0.65rem; font-weight: 700; color: #6b8a6b; text-transform: uppercase; letter-spacing: 0.1em; padding: 0 0 0.65rem 0; border-bottom: 1px solid #2a3d2e; }
 .products-table td { padding: 0.65rem 0; font-size: 0.85rem; color: #e0ead0; border-bottom: 1px solid #2a3d2e; }
@@ -744,22 +774,16 @@ async function confirmCancel() {
 .total-row { display: flex; justify-content: space-between; align-items: center; padding-top: 0.85rem; border-top: 1px solid #3d5c42; }
 .total-label { font-size: 0.95rem; font-weight: 800; color: #e0ead0; }
 .total-value { font-size: 1.1rem; font-weight: 900; color: #c9e265; }
-
-/* ── Producer Assigned ── */
 .producer-info { display: flex; flex-direction: column; gap: 0.75rem; }
 .producer-name { font-size: 1rem; font-weight: 800; color: #e0ead0; margin: 0; }
 .producer-meta-row { display: flex; align-items: center; gap: 0.45rem; font-size: 0.82rem; color: #8fba8f; }
 .producer-meta-row i { color: #c9e265; font-size: 0.85rem; }
-
-/* Producer Empty */
 .producer-empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 1rem 0.5rem; }
 .producer-empty-icon { width: 48px; height: 48px; border-radius: 50%; background: rgba(201, 226, 101, 0.1); border: 1px solid rgba(201, 226, 101, 0.2); display: flex; align-items: center; justify-content: center; color: #c9e265; font-size: 1.3rem; margin-bottom: 0.75rem; }
 .producer-empty-text { font-size: 0.92rem; font-weight: 700; color: #e0ead0; margin: 0 0 0.3rem; }
 .producer-empty-sub { font-size: 0.78rem; color: #6b8a6b; margin: 0 0 1rem; line-height: 1.4; }
 .select-producer-btn { background: #c9e265; color: #122216; border: none; padding: 0.7rem 1.4rem; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 0.45rem; transition: background 0.15s, transform 0.1s; }
 .select-producer-btn:hover { background: #d6ec6e; transform: translateY(-1px); }
-
-/* ── Tracking Card ── */
 .tracking-card { padding: 0; overflow: hidden; }
 .tracking-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid #2a3d2e; }
 .tracking-title-row { display: flex; align-items: center; gap: 0.5rem; }
@@ -772,8 +796,6 @@ async function confirmCancel() {
 .tracking-badge { font-size: 0.65rem; font-weight: 800; letter-spacing: 0.08em; padding: 0.3rem 0.65rem; border-radius: 6px; }
 .badge-active { background: rgba(201, 226, 101, 0.15); color: #c9e265; border: 1px solid rgba(201, 226, 101, 0.35); }
 .badge-waiting { background: rgba(148, 163, 184, 0.12); color: #9ab39d; border: 1px solid rgba(148, 163, 184, 0.3); }
-
-/* Map Container */
 .map-container { background: #0c1f15; }
 .map-svg { display: block; width: 100%; height: auto; }
 .map-sensors { display: flex; align-items: center; padding: 0.85rem 1.25rem; border-top: 1px solid #1a2a1e; gap: 1rem; }
@@ -783,14 +805,10 @@ async function confirmCancel() {
 .sensor-label { font-size: 0.65rem; font-weight: 600; color: #6b8a6b; text-transform: uppercase; letter-spacing: 0.08em; }
 .sensor-value { font-size: 1.1rem; font-weight: 800; color: #c9e265; }
 .sensor-divider { width: 1px; height: 30px; background: #2a3d2e; }
-
-/* Map Waiting */
 .map-waiting { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 3rem 2rem; }
 .map-waiting-icon { font-size: 2.5rem; color: #3d5c42; margin-bottom: 0.85rem; }
 .map-waiting-title { font-size: 0.95rem; font-weight: 700; color: #9ab39d; margin: 0 0 0.35rem; }
 .map-waiting-sub { font-size: 0.78rem; color: #6b8a6b; max-width: 280px; margin: 0; line-height: 1.45; }
-
-/* ── Quality Card ── */
 .quality-card { padding: 1rem 1.25rem; }
 .quality-row { display: flex; align-items: center; gap: 0.85rem; }
 .quality-icon-wrap { width: 38px; height: 38px; border-radius: 10px; background: rgba(201, 226, 101, 0.1); border: 1px solid rgba(201, 226, 101, 0.2); display: flex; align-items: center; justify-content: center; color: #c9e265; font-size: 1rem; flex-shrink: 0; }
@@ -798,8 +816,6 @@ async function confirmCancel() {
 .quality-title { font-size: 0.78rem; font-weight: 700; color: #8fba8f; text-transform: uppercase; letter-spacing: 0.08em; }
 .quality-status { font-size: 0.95rem; font-weight: 800; color: #e0ead0; }
 .btn-reporte { margin-left: auto; padding: 0.45rem 0.9rem; font-size: 0.75rem; }
-
-/* ── Timeline ── */
 .timeline { display: flex; flex-direction: column; }
 .timeline-step { display: flex; gap: 0.85rem; min-height: 56px; }
 .timeline-marker { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; width: 24px; }
@@ -815,8 +831,6 @@ async function confirmCancel() {
 .timeline-label.bold { font-weight: 800; color: #c9e265; }
 .timeline-step.pending .timeline-label { color: #6b8a6b; }
 .timeline-sub { font-size: 0.72rem; color: #6b8a6b; margin-top: 0.15rem; }
-
-/* ── Delivery Details ── */
 .delivery-items { display: flex; flex-direction: column; gap: 0.65rem; }
 .delivery-item { display: flex; gap: 0.75rem; align-items: flex-start; background: #2a3d2e; padding: 0.85rem; border-radius: 10px; border: 1px solid #3d5c42; }
 .delivery-icon-wrap { width: 32px; height: 32px; border-radius: 8px; background: rgba(201, 226, 101, 0.1); border: 1px solid rgba(201, 226, 101, 0.2); display: flex; align-items: center; justify-content: center; color: #c9e265; font-size: 0.85rem; flex-shrink: 0; }
@@ -824,8 +838,6 @@ async function confirmCancel() {
 .delivery-label { font-size: 0.62rem; font-weight: 700; color: #6b8a6b; text-transform: uppercase; letter-spacing: 0.08em; }
 .delivery-value { font-size: 0.82rem; font-weight: 700; color: #e0ead0; line-height: 1.35; }
 .delivery-sub { font-size: 0.72rem; color: #8fba8f; }
-
-/* ── Cancel Dialog ── */
 :global(.delete-confirm-dialog) { font-family: 'DM Sans', sans-serif !important; background: #1a2a1e !important; border-radius: 16px !important; border: 1px solid #3d5c42 !important; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5) !important; }
 :global(.delete-confirm-dialog .p-dialog-header), :global(.delete-confirm-dialog .p-dialog-content), :global(.delete-confirm-dialog .p-dialog-footer) { background: #1a2a1e !important; color: #e0ead0 !important; border: none !important; }
 .cancel-header { display: flex; align-items: center; gap: 0.75rem; font-size: 1.1rem; font-weight: 800; color: #e0ead0; }
@@ -839,79 +851,36 @@ async function confirmCancel() {
 .cancel-dismiss-btn:hover { background: #2a3d2e; color: #e0ead0; }
 .cancel-confirm-btn { background: rgba(248, 113, 113, 0.15); color: #f87171; border: 1.5px solid rgba(248, 113, 113, 0.35); transition: background 0.2s, border-color 0.2s, color 0.2s; }
 .cancel-confirm-btn:hover { background: rgba(248, 113, 113, 0.28); border-color: #f87171; color: #fca5a5; }
-
-/* ========================================================= */
-/* 🟢 ESTILOS DEL PANEL LATERAL DESLIZABLE (DRAWER)          */
-/* ========================================================= */
-
-.drawer-overlay {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(2px);
-  z-index: 1000;
-}
-
-.quality-drawer {
-  position: fixed;
-  top: 0;
-  right: 0;
-  width: 520px;
-  height: 100vh;
-  background: #1a2a1e; /* Color adaptado al diseño de Fruitlogix */
-  box-shadow: -10px 0 30px rgba(0,0,0,0.5);
-  border-left: 1px solid #2a3d2e;
-  display: flex;
-  flex-direction: column;
-  z-index: 1001;
-}
-
-/* Transición Deslizable */
+.drawer-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(2px); z-index: 1000; }
+.quality-drawer { position: fixed; top: 0; right: 0; width: 520px; height: 100vh; background: #1a2a1e; box-shadow: -10px 0 30px rgba(0,0,0,0.5); border-left: 1px solid #2a3d2e; display: flex; flex-direction: column; z-index: 1001; }
 .slide-drawer-enter-active, .slide-drawer-leave-active { transition: transform 0.3s ease-out; }
 .slide-drawer-enter-from, .slide-drawer-leave-to { transform: translateX(100%); }
-
-/* Transición Overlay Fade */
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
-
 .drawer-accent { height: 2px; background: #c9e265; flex-shrink: 0; }
-
-.drawer-header {
-  padding: 1.5rem;
-  border-bottom: 1px solid #2a3d2e;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
+.drawer-header { padding: 1.5rem; border-bottom: 1px solid #2a3d2e; display: flex; justify-content: space-between; align-items: flex-start; }
 .drawer-header-left { display: flex; gap: 1rem; }
 .drawer-back-btn { background: transparent; border: none; color: #e0ead0; font-size: 1.1rem; cursor: pointer; padding: 0.2rem; }
 .drawer-titles h2 { font-size: 1.2rem; font-weight: 800; color: #e0ead0; margin: 0 0 0.25rem 0; }
 .drawer-titles p { margin: 0; font-size: 0.75rem; color: #8fba8f; }
-
 .drawer-header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem; }
 .drawer-badge-main { background: #c9e265; color: #1a3020; font-size: 0.65rem; font-weight: 900; padding: 0.3rem 0.6rem; border-radius: 6px; letter-spacing: 0.05em; }
 .drawer-time { font-size: 0.65rem; color: #6b8a6b; font-weight: 600; }
-
 .drawer-content { flex: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem; }
 .drawer-section { display: flex; flex-direction: column; gap: 0.85rem; }
 .section-heading-row { display: flex; justify-content: space-between; align-items: center; }
 .section-heading { margin: 0; font-size: 0.85rem; color: #c9e265; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 800; display: flex; align-items: center; gap: 0.5rem; }
-
 .info-card.no-margin { margin-bottom: 0; padding: 1rem; }
 .table-summary-strip { background: rgba(212, 163, 75, 0.12); color: #e5b95e; padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; border-radius: 8px; margin-top: 0.5rem; border: 1px solid rgba(212, 163, 75, 0.3); }
-
 .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
 .photo-item, .photo-placeholder { display: flex; flex-direction: column; gap: 0.4rem; }
 .photo-item img { width: 100%; height: 90px; object-fit: cover; border-radius: 8px; border: 1px solid #3d5c42; }
 .photo-item p { margin: 0; font-size: 0.65rem; color: #8fba8f; text-align: center; line-height: 1.3; }
 .photo-placeholder { height: 90px; border: 1px dashed #3d5c42; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #6b8a6b; font-size: 0.75rem; gap: 0.3rem;}
-
 .producer-notes { background: #1e2d22; border-left: 3px solid #c9e265; padding: 1rem; border-radius: 0 8px 8px 0; display: flex; flex-direction: column; gap: 0.75rem; border: 1px solid #2a3d2e; border-left-width: 3px; }
 .producer-notes p { margin: 0; color: #e0ead0; font-size: 0.85rem; font-style: italic; line-height: 1.5; }
-
 .drawer-footer { background: #1a2a1e; border-top: 1px solid #2a3d2e; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
 .footer-btn-group { display: flex; flex-direction: column; gap: 0.4rem; align-items: center; }
-
 .action-btn-full { width: 100%; height: 44px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 800; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; border: none; }
 .action-btn-full.lime { background: #c9e265; color: #122216; }
 .action-btn-full.lime:hover { background: #d6ec6e; }
@@ -919,21 +888,7 @@ async function confirmCancel() {
 .action-btn-full.outline-amber:hover { background: rgba(212, 163, 75, 0.1); }
 .action-btn-full.outline-danger { background: transparent; color: #f87171; border: 1.5px solid rgba(248, 113, 113, 0.35); height: 40px; }
 .action-btn-full.outline-danger:hover { background: rgba(248, 113, 113, 0.1); }
-
-@media (max-width: 1200px) {
-  .body-grid { grid-template-columns: 1fr 1fr; }
-  .right-col { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
-  .right-col .info-card { margin-bottom: 0; }
-}
-@media (max-width: 900px) {
-  .header-card { flex-direction: column; }
-  .header-right { align-items: flex-start; }
-  .meta-grid { grid-template-columns: repeat(2, 1fr); }
-  .quality-drawer { width: 100%; }
-}
-@media (max-width: 768px) {
-  .detail-wrapper { padding: 1rem; }
-  .body-grid { grid-template-columns: 1fr; }
-  .right-col { grid-template-columns: 1fr; }
-}
+@media (max-width: 1200px) { .body-grid { grid-template-columns: 1fr 1fr; } .right-col { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; } .right-col .info-card { margin-bottom: 0; } }
+@media (max-width: 900px) { .header-card { flex-direction: column; } .header-right { align-items: flex-start; } .meta-grid { grid-template-columns: repeat(2, 1fr); } .quality-drawer { width: 100%; } }
+@media (max-width: 768px) { .detail-wrapper { padding: 1rem; } .body-grid { grid-template-columns: 1fr; } .right-col { grid-template-columns: 1fr; } }
 </style>

@@ -81,7 +81,7 @@ function confirmAndActivate() {
 
   // Synchronous local state update (no await, no network dependency)
   const success = orderStore.assignOrder(orderId, {
-    producerId: orderStore.wizardProducer?.id || 'p1',
+    producerId: Number(orderStore.wizardProducer?.id) || 1,
     producer: producerName.value,
     driver: driverName.value,
     vehicle: vehicleName.value,

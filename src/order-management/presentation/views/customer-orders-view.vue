@@ -9,7 +9,7 @@
     </div>
 
     <!-- Empty state -->
-    <div v-if="cartStore.orders.length === 0" class="empty-state">
+    <div v-if="liveOrders.length === 0" class="empty-state">
       <div class="empty-icon">📦</div>
       <h3>{{ t('orders.empty', 'No tienes pedidos') }}</h3>
       <p>{{ t('orders.emptyDesc', 'Tu historial de pedidos aparecerá aquí') }}</p>
@@ -21,7 +21,7 @@
       <!-- Left: list -->
       <div class="orders-list">
         <div
-            v-for="order in cartStore.orders"
+            v-for="order in liveOrders"
             :key="order.id"
             :class="['order-card', { selected: selectedOrderId === order.id }]"
             @click="selectOrder(order.id)"
@@ -31,13 +31,13 @@
             <span :class="['status-badge', getStatusClass(order.status)]">{{ getStatusLabel(order.status) }}</span>
           </div>
           <div class="order-card-items">
-            {{ order.items.map(i => i.product.name).join(', ') }}
+            {{ (order.selectedFruits || []).map(f => f.name).join(', ') }}
           </div>
           <div class="order-card-footer">
             <div class="order-date">{{ formatDate(order.createdAt) }}</div>
-            <div class="order-total-mini">S/ {{ order.total.toFixed(2) }}</div>
+            <div class="order-total-mini">S/ {{ Number(order.totalAmount || 0).toFixed(2) }}</div>
           </div>
-          <div class="order-card-actions" v-if="order.paymentStatus === 'PENDIENTE'" @click.stop>
+          <div class="order-card-actions" v-if="false" @click.stop>
             <span class="pending-pay-badge">{{ t('orders.payPending', 'Pago pendiente') }}</span>
             <button class="btn-pay-now" @click="router.push({ name: 'customer-payment', params: { orderId: order.id } })">{{ t('orders.payNow', 'Pagar Ahora') }}</button>
           </div>
@@ -66,15 +66,15 @@
             </div>
             <div class="detail-cell">
               <span class="detail-label">Total</span>
-              <span class="detail-value" style="color: #D4E952; font-size: 18px; font-weight: 800;">S/ {{ selectedOrder.total.toFixed(2) }}</span>
+              <span class="detail-value">S/ {{ Number(selectedOrder.totalAmount || 0).toFixed(2) }}</span>
             </div>
           </div>
           <div class="detail-items">
-            <div v-for="item in selectedOrder.items" :key="item.product.id" class="detail-item">
-              <span class="detail-item-emoji">{{ item.product.image }}</span>
-              <span class="detail-item-name">{{ item.product.name }}</span>
-              <span class="detail-item-qty">{{ item.quantity }} {{ item.product.unit }}</span>
-              <span class="detail-item-price">S/ {{ (item.product.price * item.quantity).toFixed(2) }}</span>
+            <div v-for="item in selectedOrder.selectedFruits" :key="item.id" class="detail-item">
+              <span class="detail-item-dot"></span>
+              <span class="detail-item-name">{{ item.name }}</span>
+              <span class="detail-item-qty">{{ item.quantity }} kg</span>
+              <span class="detail-item-price">S/ {{ Number(item.subtotal || 0).toFixed(2) }}</span>
             </div>
           </div>
         </div>
@@ -153,81 +153,114 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, computed } from 'vue';
+<script setup>
+import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { useCartStore } from '../../application/cart.store';
+import { OrderManagementApi } from '../../infrastructure/order-management-api.js';
 
 const router = useRouter();
-const cartStore = useCartStore();
 const { t } = useI18n();
-const selectedOrderId = ref<string | null>(cartStore.orders[0]?.id || null);
 
-const selectedOrder = computed(() => cartStore.orders.find(o => o.id === selectedOrderId.value));
+const liveOrders = ref([]);
+const selectedOrderId = ref(null);
+const orderManagementApi = new OrderManagementApi();
+
+onMounted(() => {
+  orderManagementApi.getOrders()
+      .then(response => {
+        // 🕵️‍♂️ AQUÍ VEREMOS LA VERDAD EN LA CONSOLA (F12)
+        console.log("📦 DATOS CRUDOS DE C#:", response.data);
+
+        const rawOrders = response.data || [];
+
+        liveOrders.value = rawOrders.map(order => {
+          const backendItems = order.items || order.orderItems || [];
+
+          const mappedFruits = backendItems.map(item => ({
+            id: item.id || item.productId || Math.random(),
+            name: item.name || item.productName || 'Fruta',
+            quantity: item.quantityKg || 0,
+            subtotal: item.unitPrice ? (item.quantityKg * item.unitPrice) : 0
+          }));
+
+          return {
+            id: `#ORD-REAL-${order.id}`,
+            idRaw: order.id,
+            createdAt: order.createdAt || new Date().toISOString(),
+            status: order.status,
+            paymentStatus: 'PAGADO',
+            totalAmount: Number(order.totalAmount || order.total || 0),
+            selectedFruits: mappedFruits,
+            trackingSteps: [
+              { id: 1, label: 'Pedido Recibido', description: 'El cliente ha confirmado el pedido.', status: 'done', actor: 'distributor', time: '09:00' },
+              { id: 2, label: 'Asignando Productor', description: 'Buscando el mejor productor disponible.', status: order.status === 'Pending' ? 'active' : 'done', actor: 'distributor' },
+              { id: 3, label: 'En Preparación', description: 'El productor está empacando las frutas.', status: order.status === 'InPreparation' ? 'active' : (['InTransit', 'Delivered'].includes(order.status) ? 'done' : 'pending'), actor: 'producer' },
+              { id: 4, label: 'En Ruta de Distribución', description: 'El cargamento va hacia el almacén central.', status: order.status === 'InTransit' ? 'active' : (order.status === 'Delivered' ? 'done' : 'pending'), actor: 'distributor' },
+              { id: 5, label: 'Entregado', description: 'El pedido llegó a su destino final.', status: order.status === 'Delivered' ? 'active' : 'pending', actor: 'distributor' }
+            ]
+          };
+        });
+
+        if (liveOrders.value.length > 0) {
+          selectedOrderId.value = liveOrders.value[0].id;
+        }
+      })
+      .catch(error => {
+        console.error("Error crítico al recuperar las órdenes:", error);
+      });
+});
+
+const selectedOrder = computed(() => liveOrders.value.find(o => o.id === selectedOrderId.value));
 
 const canAdvance = computed(() => {
-  if (!selectedOrder.value) return false;
+  if (!selectedOrder.value || !selectedOrder.value.trackingSteps) return false;
   const steps = selectedOrder.value.trackingSteps;
   return steps.some(s => s.status !== 'done') && steps[steps.length - 1].status !== 'done';
 });
 
-function selectOrder(id: string) {
+function selectOrder(id) {
   selectedOrderId.value = id;
 }
 
-function getStatusLabel(status: string) {
-  const map: Record<string, string> = {
-    'PENDIENTE_PAGO': 'Pendiente',
-    'CONFIRMADO': 'Confirmado',
-    'EN_PRODUCCION': 'En Producción',
-    'EN_DISTRIBUCION': 'En Distribución',
-    'EN_RUTA': 'En Ruta',
-    'ENTREGADO': 'Entregado'
+function getStatusLabel(status) {
+  const map = {
+    'Pending': 'Pendiente',
+    'InPreparation': 'En Preparación',
+    'InTransit': 'En Ruta',
+    'Delivered': 'Entregado',
+    'Cancelled': 'Cancelado',
+    'Rejected': 'Rechazado'
   };
   return map[status] || status;
 }
 
-function getStatusClass(status: string) {
-  const map: Record<string, string> = {
-    'PENDIENTE_PAGO': 'status-warning',
-    'CONFIRMADO': 'status-info',
-    'EN_PRODUCCION': 'status-info',
-    'EN_DISTRIBUCION': 'status-info',
-    'EN_RUTA': 'status-active',
-    'ENTREGADO': 'status-success'
+function getStatusClass(status) {
+  const map = {
+    'Pending': 'status-warning',
+    'InPreparation': 'status-info',
+    'InTransit': 'status-active',
+    'Delivered': 'status-success',
+    'Cancelled': 'status-warning',
+    'Rejected': 'status-warning'
   };
   return map[status] || '';
 }
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+function formatDate(dateStr) {
+  if (!dateStr) return 'Fecha no disponible';
+  return new Date(dateStr).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function advanceTracking() {
   const order = selectedOrder.value;
-  if (!order) return;
+  if (!order || !order.trackingSteps) return;
   const steps = order.trackingSteps;
   const activeIdx = steps.findIndex(s => s.status === 'active');
   if (activeIdx === -1) return;
   steps[activeIdx].status = 'done';
-  steps[activeIdx].time = new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
   if (activeIdx + 1 < steps.length) {
     steps[activeIdx + 1].status = 'active';
-    // Update order status
-    const statusMap: Record<number, string> = {
-      1: 'EN_PRODUCCION',
-      2: 'EN_PRODUCCION',
-      3: 'EN_DISTRIBUCION',
-      4: 'EN_DISTRIBUCION',
-      5: 'EN_RUTA',
-    };
-    if (statusMap[activeIdx + 1]) {
-      order.status = statusMap[activeIdx + 1];
-    }
-  } else {
-    order.status = 'ENTREGADO';
   }
 }
 </script>
@@ -350,4 +383,7 @@ function advanceTracking() {
 @media (max-width: 1024px) {
   .orders-layout { grid-template-columns: 1fr; }
 }
+
+.detail-item-dot { width: 10px; height: 10px; background-color: #A3D139; border-radius: 50%; display: inline-block; margin-right: 12px; }
+
 </style>

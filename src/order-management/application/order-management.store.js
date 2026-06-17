@@ -25,6 +25,8 @@ const useOrderManagementStore = defineStore('order-management', () => {
     const errors = ref([]);
     /** @type {import('vue').Ref<boolean>} */
     const ordersLoaded = ref(false);
+    // Memoria para guardar los cambios de estado simulados y que la API no los borre
+    const localStatusOverrides = ref({});
 
     /* ── Wizard temporary state (lives across Steps 1→2→3) ── */
     const wizardProducer = ref(null);  // { id, name, location, rating, ... }
@@ -68,27 +70,26 @@ const useOrderManagementStore = defineStore('order-management', () => {
      * Loads orders from infrastructure and updates the application state.
      * @returns {Promise<void>}
      */
-    async function fetchOrders() {
-        isLoading.value = true;
+    async function fetchOrders() { // O el nombre que tenga tu función
         try {
+            // Tu código original que llama a la API. Se verá algo parecido a esto:
             const response = await orderManagementApi.getOrders();
-            orders.value = response.data.map(o => {
-                // Mantenemos la inicialización de pruebas limpia de tu compañero
-                if (o.status !== 'Cancelado' && o.status !== 'En Preparación' && o.status !== 'Listo Despacho') {
-                    o.status = 'Pendiente';
-                    o.statusClass = 'status-registered';
+            orders.value = response.data; // O como mapees tu respuesta
+
+            // ✨ LO NUEVO: Después de recibir los datos, aplicamos nuestra memoria local
+            orders.value.forEach(order => {
+                const override = localStatusOverrides.value[order.id];
+                if (override) {
+                    // Si la orden está en nuestra memoria, pisamos lo que dijo C#
+                    order.status = override.status;
+                    order.statusClass = override.statusClass;
                 }
-                return OrderAssembler.toEntity(o);
             });
-            ordersLoaded.value = true;
+
         } catch (error) {
-            console.error('[order-management.store]', error);
-            errors.value.push(error);
-        } finally {
-            isLoading.value = false;
+            console.error("Error cargando órdenes:", error);
         }
     }
-
     /**
      * Finds an order entity by identifier.
      * @param {number|string} id - Order identifier.
@@ -154,18 +155,20 @@ const useOrderManagementStore = defineStore('order-management', () => {
             return false;
         }
 
+        // 1. Actualización visual en Vue (para que lo veas al instante)
         order.producerId = data.producerId ?? order.producerId;
         order.producer = data.producer ?? order.producer;
         order.driver = data.driver ?? order.driver;
         order.vehicle = data.vehicle ?? order.vehicle;
-        order.status = data.status ?? order.status;
-        order.statusClass = data.statusClass ?? order.statusClass;
+        order.status = 'InPreparation'; // Actualizamos el estado acorde a C#
+        order.statusClass = 'status-assigned';
 
         console.log('[assignOrder] Local state updated:', order);
 
-        // API sync secundario
-        const payload = OrderAssembler.toApi(order);
-        orderManagementApi.updateOrder(orderId, payload).catch(err => {
+        // 2. Sincronización real con C# a través del PATCH
+        const payload = { producerId: Number(data.producerId) };
+
+        orderManagementApi.assignProducer(orderId, payload).catch(err => {
             console.warn('[assignOrder] API sync failed:', err.message);
         });
 
@@ -174,17 +177,24 @@ const useOrderManagementStore = defineStore('order-management', () => {
 
     /**
      * CASO DE USO 3: El Productor cambia el estado del lote en su taller.
-     * Ejemplo: Pasa de 'Pendiente Preparación' a 'En Preparación' o 'Listo Despacho'
+     * Actualización puramente visual en el Frontend (Bypass de la API por restricciones de dominio)
      */
     function simulateProducerUpdateStatus(orderId, newStatus, statusClass = 'status-processing') {
         const order = orders.value.find(o => String(o.id) === String(orderId));
+
         if (order) {
+            // 1. Actualización visual instantánea en Vue
             order.status = newStatus;
             order.statusClass = statusClass;
-            console.log(`[Simulación] Productor actualizó orden #${orderId} a: ${newStatus}`);
 
-            // API sync en segundo plano
-            orderManagementApi.updateOrder(orderId, { status: newStatus, statusClass }).catch(() => { });
+            // 2. MAGIA: Guardamos este cambio en la memoria de Pinia
+            localStatusOverrides.value[orderId] = {
+                status: newStatus,
+                statusClass: statusClass
+            };
+
+            console.log(`[Simulación] Productor actualizó orden #${orderId} a: ${newStatus} (Guardado en memoria)`);
+
             return true;
         }
         return false;

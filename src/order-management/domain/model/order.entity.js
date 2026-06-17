@@ -2,30 +2,30 @@ import { Fruit } from './fruit.entity.js';
 
 /**
  * Order entity within the Order Management bounded context.
- *
- * @class Order
+ * Mantenida igual para no romper las vistas de la UI.
  */
 export class Order {
     constructor({
-        id = '',
-        clientName = '',
-        commercialClientId = '',
-        selectedFruits = [],
-        fruitType = '',
-        quantity = '',
-        status = '',
-        statusClass = '',
-        producer = '',
-        producerId = null,
-        driver = '',
-        vehicle = '',
-        product = '',
-        volume = '',
-        totalVolume = 0,
-        totalAmount = 0,
-        deliveryDueDate = null,
-        cancelledAt = null
-    } = {}) {
+                    id = '',
+                    clientName = '',
+                    commercialClientId = '',
+                    selectedFruits = [],
+                    fruitType = '',
+                    quantity = '',
+                    status = '',
+                    statusClass = '',
+                    producer = '',
+                    producerId = null,
+                    driver = '',
+                    vehicle = '',
+                    product = '',
+                    volume = '',
+                    totalVolume = 0,
+                    totalAmount = 0,
+                    deliveryDueDate = null,
+                    cancelledAt = null,
+                    deliveryAddress = '' // <-- ÚNICO CAMBIO: Agregamos esto de forma segura
+                } = {}) {
         this.id = id;
         this.clientName = clientName;
         this.commercialClientId = commercialClientId;
@@ -44,6 +44,7 @@ export class Order {
         this.totalAmount = totalAmount;
         this.deliveryDueDate = deliveryDueDate;
         this.cancelledAt = cancelledAt;
+        this.deliveryAddress = deliveryAddress; // Asignación de la dirección
     }
 
     static fromJson(json) {
