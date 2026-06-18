@@ -1,6 +1,5 @@
 <template>
   <div class="layout-wrapper">
-    <!-- Sidebar -->
     <header class="mobile-top-bar">
       <div class="mobile-logo-wrap">
         <img src="../../../assets/logo_fruitlogix1.png" alt="Logo" class="mobile-logo-img" />
@@ -10,48 +9,50 @@
 
     <div v-if="sidebarVisible" class="sidebar-overlay" @click="sidebarVisible = false"></div>
 
-    <aside class="sidebar" :class="{ 'sidebar-active': sidebarVisible }">
+    <aside class="sidebar" :class="{ 'sidebar-active': sidebarVisible, 'sidebar-collapsed': isCollapsed }">
       <div class="sidebar-header">
         <div class="header-top-mobile">
           <pv-button icon="pi pi-times" class="p-button-text close-btn mobile-only" @click="sidebarVisible = false" />
         </div>
-        <div class="logo-area">
-          <img src="../../../assets/logo_fruitlogix1.png" alt="FruitLogix Logo" class="full-logo desktop-only" />
-          <img src="../../../assets/logo_fruitlogix1.png" alt="FruitLogix Logo" class="small-logo-sidebar mobile-only" />
+        <div class="logo-area" :class="{ 'collapsed-logo-area': isCollapsed }">
+          <img v-show="!isCollapsed" src="../../../assets/logo_fruitlogix1.png" alt="FruitLogix Logo" class="full-logo" />
+          <img v-show="isCollapsed" src="../../../assets/fruit_logo.png" alt="FruitLogix Logo" class="rail-logo" />
         </div>
-        <div class="role-badge">{{ t('app.role.distributor') }}</div>
+        <div class="role-badge" v-if="!isCollapsed">{{ t(currentRoleKey) }}</div>
       </div>
 
       <nav class="sidebar-nav">
         <div class="nav-group">
-          <button v-for="item in menuItems" :key="item.id"
-                  class="nav-item" :class="{ active: activeMenuItem.id === item.id }"
-                  @click="handleNav(item)">
+          <button v-for="item in activeMenuSet" :key="item.id"
+                  class="nav-item" :class="{ active: activeMenuItem && activeMenuItem.id === item.id }"
+                  @click="handleNav(item)"
+                  :title="isCollapsed ? t(item.sidebarLabel) : ''">
             <i :class="['pi', item.icon]" />
-            <span>{{ t(item.sidebarLabel) }}</span>
+            <span class="nav-label" v-if="!isCollapsed">{{ t(item.sidebarLabel) }}</span>
           </button>
         </div>
 
         <div class="nav-footer">
-          <button class="nav-item secondary">
+          <button class="nav-item secondary" :title="isCollapsed ? t('nav.help') : ''">
             <i class="pi pi-question-circle" />
-            <span>{{ t('nav.help') }}</span>
+            <span class="nav-label" v-if="!isCollapsed">{{ t('nav.help') }}</span>
           </button>
-          <button class="nav-item secondary logout">
+          <button class="nav-item secondary logout" @click="handleLogout" :title="isCollapsed ? t('nav.logout') : ''">
             <i class="pi pi-sign-out" />
-            <span>{{ t('nav.logout') }}</span>
+            <span class="nav-label" v-if="!isCollapsed">{{ t('nav.logout') }}</span>
           </button>
         </div>
       </nav>
     </aside>
 
-    <!-- Main Section -->
     <div class="main-container">
-      <!-- Topbar -->
       <header class="topbar">
-        <div class="page-info">
-          <h1 class="header-title">{{ t(activeMenuItem.label) }}</h1>
-          <p class="header-subtitle">{{ t('app.subtitle') }}</p>
+        <div class="topbar-left-group">
+          <pv-button icon="pi pi-bars" class="p-button-text desktop-toggle-btn desktop-only" @click="isCollapsed = !isCollapsed" />
+          <div class="page-info">
+            <h1 class="header-title">{{ activeMenuItem ? t(activeMenuItem.label) : '' }}</h1>
+            <p class="header-subtitle">{{ t('app.subtitle') }}</p>
+          </div>
         </div>
 
         <div class="header-actions">
@@ -65,14 +66,13 @@
           <div class="user-profile">
             <div class="user-info">
               <span class="user-name">Carlos Mendoza</span>
-              <span class="user-role">{{ t('app.role.distributor') }}</span>
+              <span class="user-role">{{ t(currentRoleKey) }}</span>
             </div>
             <img src="https://v0.dev/placeholder.svg?height=40&width=40&text=CM" alt="User Avatar" class="user-avatar" />
           </div>
         </div>
       </header>
 
-      <!-- Content Area -->
       <main class="content-area">
         <slot />
       </main>
@@ -85,27 +85,73 @@ import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import LanguageSwitcher from './language-switcher.vue';
+import { useAuthStore } from '../../../iam/application/auth.store.js';
 
 const route  = useRoute();
 const router = useRouter();
 const { t }  = useI18n();
 const sidebarVisible = ref(false);
+const isCollapsed = ref(true);
+const authStore = useAuthStore();
 
-const menuItems = [
-  { id: 'dashboard',         label: 'pages.dashboard',   icon: 'pi-th-large',     sidebarLabel: 'nav.dashboard',    path: '/dashboard' },
-  { id: 'order-management',  label: 'pages.order-management',  icon: 'pi-shopping-cart',sidebarLabel: 'nav.orders',      path: '/order-management/orders' },
-  { id: 'profiles-and-vehicles', label: 'pages.profiles-and-vehicles', icon: 'pi-users',   sidebarLabel: 'nav.profiles',     path: '/profiles-and-vehicles' },
-  { id: 'quality-control',   label: 'pages.quality-control',  icon: 'pi-check-square', sidebarLabel: 'nav.quality',      path: '/quality-control' },
-  { id: 'logistics-monitoring', label: 'pages.logistics-monitoring', icon: 'pi-truck',  sidebarLabel: 'nav.logistics',    path: '/logistics-monitoring' },
-  { id: 'payment-management',label: 'pages.payment-management',               icon: 'pi-dollar',       sidebarLabel: 'nav.payments',        path: '/payment-management' },
-  { id: 'iot-infrastructure',label: 'pages.iot-infrastructure',icon: 'pi-wifi',         sidebarLabel: 'nav.iot',          path: '/iot-infrastructure' }
+// 1. Menú Distribuidor (Usa paths i18n)
+const distributorMenu = [
+  { id: 'dashboard',              label: 'pages.dashboard',           icon: 'pi-th-large',       sidebarLabel: 'nav.dashboard',    path: '/dashboard' },
+  { id: 'order-management',       label: 'pages.order-management',    icon: 'pi-shopping-cart',  sidebarLabel: 'nav.orders',       path: '/order-management/orders' },
+  { id: 'profiles-and-vehicles',  label: 'pages.profiles-and-vehicles', icon: 'pi-users',          sidebarLabel: 'nav.profiles',     path: '/profiles-and-vehicles' },
+  { id: 'logistics-monitoring',   label: 'pages.logistics-monitoring',  icon: 'pi-truck',          sidebarLabel: 'nav.logistics',    path: '/logistics-monitoring' },
+  { id: 'payment-management',     label: 'pages.payment-management',  icon: 'pi-dollar',         sidebarLabel: 'nav.payments',     path: '/payment-management' },
+  { id: 'iot-infrastructure',     label: 'pages.iot-infrastructure',  icon: 'pi-wifi',           sidebarLabel: 'nav.iot',          path: '/iot-infrastructure' },
+  { id: 'distributor-chat',                   label: 'pages.chat',                icon: 'pi-comments',       sidebarLabel: 'nav.messages',     path: '/chat' }
 ];
 
-const activeMenuItem = computed(() => {
-  return menuItems.find(m => route.path.startsWith(m.path)) ?? menuItems[0];
+// 2. Nuevo Menú Productor — Corregido para usar las nuevas llaves del i18n JSON
+const producerMenu = [
+  { id: 'producer-orders',      label: 'nav.producer_orders',      icon: 'pi-shopping-cart',   sidebarLabel: 'nav.producer_orders',   path: '/producer/mis-pedidos' },
+  { id: 'producer-lots',        label: 'nav.producer_lots',        icon: 'pi-truck',           sidebarLabel: 'nav.producer_lots',     path: '/producer/mis-lotes' },
+  { id: 'producer-inspections', label: 'nav.producer_inspections', icon: 'pi-list',            sidebarLabel: 'nav.producer_inspections', path: '/producer/inspecciones' },
+  { id: 'producer-report',      label: 'nav.producer_report',      icon: 'pi-exclamation-triangle', sidebarLabel: 'nav.producer_report', path: '/producer/reportar-calidad' },
+  { id: 'producer-stock',       label: 'nav.producer_stock',       icon: 'pi-box',             sidebarLabel: 'nav.producer_stock',    path: '/producer/stock' },
+  { id: 'producer-chat',        label: 'nav.producer_chat',        icon: 'pi-comments',        sidebarLabel: 'nav.producer_chat',     path: '/producer/chat' }
+];
+
+// 3. Menú Cliente (Usa paths i18n)
+const customerMenu = [
+  { id: 'customer-dashboard',    label: 'dashboard.title',        icon: 'pi-th-large',     sidebarLabel: 'nav.dashboard',    path: '/customer/dashboard' },
+  { id: 'customer-catalog',      label: 'catalog.title',          icon: 'pi-shopping-bag', sidebarLabel: 'nav.catalog',      path: '/customer/catalog' },
+  { id: 'customer-orders',       label: 'orders.title',           icon: 'pi-shopping-cart',sidebarLabel: 'nav.orders',       path: '/customer/orders' },
+  { id: 'customer-tracking',     label: 'track.title',            icon: 'pi-map-marker',   sidebarLabel: 'nav.tracking',     path: '/customer/tracking' },
+  { id: 'customer-payments',     label: 'pay.title',              icon: 'pi-credit-card',  sidebarLabel: 'nav.payments',     path: '/customer/payments' },
+  { id: 'customer-reception',    label: 'reception.title',        icon: 'pi-check-square', sidebarLabel: 'nav.reception',    path: '/customer/reception' },
+  { id: 'customer-chat',         label: 'chat.title',             icon: 'pi-comments',     sidebarLabel: 'nav.chat',         path: '/customer/chat' }
+];
+
+// 4. Conmutador reactivo de conjuntos de menús según rol activo
+const activeMenuSet = computed(() => {
+  const role = authStore.role;
+  if (role === 'producer' || role === 'Productor') return producerMenu; 
+  if (role === 'customer' || role === 'Cliente Comercial') return customerMenu;
+  return distributorMenu;
 });
 
-const currentTitle = computed(() => activeMenuItem.value.label);
+// Resuelve reactivamente qué llave de traducción usar para el badge de rol activo
+const currentRoleKey = computed(() => {
+  const role = authStore.role?.toLowerCase();
+  if (role === 'producer' || role === 'productor') return 'app.role.producer';
+  if (role === 'customer' || role === 'cliente comercial') return 'app.role.customer';
+  return 'app.role.distributor';
+});
+
+const handleLogout = () => {
+    authStore.logout(); 
+    router.push('/login'); 
+};
+
+// Determina el elemento de menú actualmente seleccionado de forma segura
+const activeMenuItem = computed(() => {
+  const currentSet = activeMenuSet.value;
+  return currentSet.find(m => route.path.startsWith(m.path)) ?? currentSet[0];
+});
 
 const handleNav = (item) => {
   router.push(item.path);
@@ -119,10 +165,13 @@ const handleNav = (item) => {
 .layout-wrapper {
   display: flex;
   height: 100vh;
-  width: 100vw;
+  width: 100%;
+  max-width: 100vw;
   background-color: #E1EBE1;
   font-family: 'DM Sans', sans-serif;
   overflow: hidden;
+  margin: 0;
+  padding: 0;
 }
 
 .sidebar {
@@ -133,6 +182,11 @@ const handleNav = (item) => {
   flex-direction: column;
   flex-shrink: 0;
   z-index: 100;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-collapsed {
+  width: 80px;
 }
 
 .sidebar-header {
@@ -143,11 +197,23 @@ const handleNav = (item) => {
   display: flex;
   align-items: center;
   margin-bottom: 1.5rem;
+  transition: all 0.3s ease;
+  min-height: 50px;
+}
+
+.collapsed-logo-area {
+  justify-content: center;
 }
 
 .full-logo {
   height: 50px;
   width: auto;
+  object-fit: contain;
+}
+
+.rail-logo {
+  height: 40px;
+  width: 40px;
   object-fit: contain;
 }
 
@@ -226,6 +292,17 @@ const handleNav = (item) => {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   width: 100%;
   text-align: left;
+  white-space: nowrap;
+}
+
+.sidebar-collapsed .nav-item {
+  padding: 0.85rem;
+  justify-content: center;
+}
+
+.nav-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .nav-item i {
@@ -261,6 +338,11 @@ const handleNav = (item) => {
   padding: 0.7rem 1.25rem;
 }
 
+.sidebar-collapsed .nav-item.secondary {
+  padding: 0.7rem;
+  justify-content: center;
+}
+
 .nav-item.secondary i {
   font-size: 1rem;
   color: #1bb37e;
@@ -279,6 +361,7 @@ const handleNav = (item) => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  width: 100%;
 }
 
 .topbar {
@@ -290,6 +373,22 @@ const handleNav = (item) => {
   padding: 0 2rem;
   color: white;
   flex-shrink: 0;
+}
+
+.topbar-left-group {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.desktop-toggle-btn {
+  color: #8fba8f !important;
+  font-size: 1.2rem !important;
+  margin-right: 0.5rem;
+}
+
+.desktop-toggle-btn:hover {
+  color: #c8e645 !important;
 }
 
 .header-title {
@@ -309,30 +408,6 @@ const handleNav = (item) => {
   display: flex;
   align-items: center;
   gap: 1.5rem;
-}
-
-.lang-switcher {
-  display: flex;
-  background: #1e2d22;
-  padding: 3px;
-  border-radius: 8px;
-}
-
-.lang-btn {
-  padding: 0.4rem 0.75rem;
-  border: none;
-  background: transparent;
-  color: #8fba8f;
-  font-size: 0.75rem;
-  font-weight: 700;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.lang-btn.active {
-  background: #fff;
-  color: #1a3020;
 }
 
 .action-icons {
@@ -373,7 +448,7 @@ const handleNav = (item) => {
 }
 
 .user-role {
-  font-size: 0.65rem;
+  font-size: 0.64rem;
   font-weight: 700;
   color: #8fba8f;
   letter-spacing: 0.05em;
@@ -391,61 +466,47 @@ const handleNav = (item) => {
   flex: 1;
   overflow-y: auto;
   position: relative;
-}
-
-/* FAB */
-.fab-btn {
-  position: fixed;
-  bottom: 2rem;
-  right: 2rem;
-  width: 54px;
-  height: 54px;
-  border-radius: 12px;
-  background-color: #D7EC6E;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.25rem;
-  color: #1a3020;
-  box-shadow: 0 8px 24px rgba(215, 236, 110, 0.4);
-  cursor: pointer;
-  transition: transform 0.2s, background-color 0.2s;
-  z-index: 50;
-}
-
-.fab-btn:hover {
-  transform: translateY(-4px);
-  background-color: #e2f58a;
+  width: 100%;
 }
 
 @media (max-width: 1024px) {
+  /* 1. Obligamos al sidebar a quedarse en pantalla, pero comprimido a 80px */
   .sidebar {
-    position: fixed;
-    left: -280px;
-    top: 0;
-    bottom: 0;
-    width: 280px;
-    z-index: 2000;
-    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative !important;
+    left: 0 !important;
+    width: 80px !important;
+    z-index: 100;
   }
 
-  .sidebar-active {
-    left: 0;
-    box-shadow: 10px 0 30px rgba(0,0,0,0.1);
+  /* 2. Matamos la barra oscura de móvil porque el sidebar siempre estará visible */
+  .mobile-top-bar {
+    display: none !important;
   }
 
-  .mobile-top-bar { display: flex; }
-  .main-container { width: 100%; }
+  /* 3. Ocultamos todos los textos y el rol */
+  .nav-label, .role-badge {
+    display: none !important;
+  }
 
-  .mobile-only { display: block; }
-  .desktop-only { display: none; }
+  /* 4. Centramos los iconos de los botones perfectamente */
+  .nav-item, .nav-item.secondary {
+    padding: 0.85rem !important;
+    justify-content: center !important;
+  }
 
+  /* 5. Forzamos a que SIEMPRE se vea la manzanita pequeña (rail-logo) */
+  .logo-area {
+    justify-content: center !important;
+  }
+  .full-logo { display: none !important; }
+  .rail-logo { display: block !important; }
+
+  /* Ajustes del topbar principal */
+  .desktop-toggle-btn { display: none !important; }
   .topbar {
     padding: 0 1.5rem;
     height: 70px;
   }
-
   .header-subtitle, .user-info { display: none; }
 }
 
@@ -457,7 +518,6 @@ const handleNav = (item) => {
     align-items: flex-start;
     gap: 1rem;
   }
-
   .header-actions {
     width: 100%;
     justify-content: space-between;

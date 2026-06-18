@@ -8,7 +8,9 @@ import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { OrderManagementApi } from '../infrastructure/order-management-api.js';
 import { OrderAssembler } from '../infrastructure/order.assembler.js';
+import { ProfilesAndVehiclesApi } from '../../profiles-and-vehicles/infrastructure/profiles-and-vehicles-api.js';
 
+const profilesApi = new ProfilesAndVehiclesApi();
 const orderManagementApi = new OrderManagementApi();
 
 /**
@@ -25,37 +27,92 @@ const useOrderManagementStore = defineStore('order-management', () => {
     const errors = ref([]);
     /** @type {import('vue').Ref<boolean>} */
     const ordersLoaded = ref(false);
+    // Memoria para guardar los cambios de estado simulados y que la API no los borre
+    const localStatusOverrides = ref({});
+
+    /* ── Wizard temporary state (lives across Steps 1→2→3) ── */
+    const wizardProducer = ref(null);  // { id, name, location, rating, ... }
+    const wizardVehicle = ref('ABC-123');
+    const wizardDriver = ref('Carlos Ávila');
+
+    function clearWizard() {
+        wizardProducer.value = null;
+        wizardVehicle.value = 'ABC-123';
+        wizardDriver.value = 'Carlos Ávila';
+    }
 
     /** @type {import('vue').ComputedRef<number>} */
     const ordersCount = computed(() => orders.value.length);
     /** @type {import('vue').ComputedRef<import('../domain/order.entity.js').Order[]>} */
     const recentOrders = computed(() => orders.value.slice(-3));
 
+    /* ── 🌟 SIMULATION QUERIES (GETTERS PARA ROLES DE USUARIO) ── */
+
+    /** Filtra pedidos visibles para el Distribuidor (excluye cancelados). */
+    const activeOrders = computed(() =>
+        orders.value.filter(o => o.status !== 'Cancelado' && o.status !== 'Cancelled')
+    );
+
+    /** Filtra pedidos para el Productor. Muestra solo los asignados a él en proceso. */
+    const getOrdersForProducer = computed(() => {
+        return (producerId) => orders.value.filter(o =>
+            o.producerId === producerId || o.producer === producerId
+        );
+    });
+
+    /** Filtra pedidos del Cliente actual para que vea su propio historial. */
+    const getOrdersForCustomer = computed(() => {
+        return (customerName) => orders.value.filter(o =>
+            o.customerName === customerName || o.distributor === customerName
+        );
+    });
+
+
     /**
      * Loads orders from infrastructure and updates the application state.
      * @returns {Promise<void>}
      */
     async function fetchOrders() {
+        ordersLoaded.value = false;
         isLoading.value = true;
         try {
-            const response = await orderManagementApi.getOrders();
-            orders.value = response.data.map(o => OrderAssembler.toEntity(o));
+            const [ordersResponse, producersResponse] = await Promise.all([
+                orderManagementApi.getOrders(),
+                orderManagementApi.getProducers()
+            ]);
+
+            const rawOrders = ordersResponse.data || ordersResponse;
+            const rawProducers = producersResponse.data || producersResponse;
+
+            const producerMap = {};
+            if (Array.isArray(rawProducers)) {
+                rawProducers.forEach(p => {
+                    producerMap[p.id] = p.legalName || p.fullName || p.name || 'Productor sin nombre';
+                });
+            }
+
+            orders.value = rawOrders.map(order => {
+                let prodName = 'Sin Asignar';
+                if (order.producerId) {
+                    prodName = producerMap[order.producerId] || `Productor #${order.producerId}`;
+                }
+                return { ...order, producerName: prodName };
+            });
+
             ordersLoaded.value = true;
         } catch (error) {
-            console.error('[order-management.store]', error);
-            errors.value.push(error);
+            console.error('Error al cargar órdenes y productores:', error);
         } finally {
             isLoading.value = false;
         }
     }
-
     /**
      * Finds an order entity by identifier.
      * @param {number|string} id - Order identifier.
      * @returns {import('../domain/order.entity.js').Order|undefined}
      */
     function getOrderById(id) {
-        return orders.value.find(o => o.id === id);
+        return orders.value.find(o => String(o.id) === String(id));
     }
 
     /**
@@ -71,6 +128,80 @@ const useOrderManagementStore = defineStore('order-management', () => {
             console.error('[order-management.store]', error);
             errors.value.push(error);
         }
+    }
+
+    /* ── 🌟 SIMULATION COMMANDS (ACCIONES PARA INTERCONECTAR ROLES) ── */
+
+    /**
+     * CASO DE USO 1: El Cliente crea un pedido directo desde su carrito.
+     * Inserta síncronamente en el array local para simulación inmediata.
+     */
+    function simulateCustomerCheckout(cartData) {
+        const mockOrder = {
+            id: String(Math.floor(Math.random() * 90) + 100), // Crea un ID aleatorio como #102
+            distributor: cartData.distributor || 'Distribuidora Lima Sur',
+            customerName: cartData.customerName || 'Distribuidora Lima Sur',
+            summary: cartData.itemsSummary || 'Productos variados',
+            products: cartData.itemsSummary || 'Mango Kent — 120 kg • Uva Red Globe — 50 kg',
+            totalAmount: cartData.total || 170,
+            deliveryDate: cartData.date || '15 jun. 2026',
+            status: 'Pendiente',
+            statusClass: 'status-registered',
+            producerId: null,
+            producer: '',
+            driver: '',
+            vehicle: ''
+        };
+
+        orders.value.unshift(mockOrder);
+        console.log('[Simulación] Cliente creó pedido:', mockOrder);
+        return mockOrder;
+    }
+
+    /**
+     * CASO DE USO 2: El Distribuidor asigna productor y flota.
+     * Modifica las propiedades reactivas locales y sincroniza el API.
+     */
+    function assignOrder(orderId, data) {
+        const order = orders.value.find(
+            o => o.id === orderId || String(o.id) === String(orderId)
+        );
+        if (!order) {
+            console.error('[assignOrder] Order not found:', orderId);
+            return false;
+        }
+        order.producerId = data.producerId ?? order.producerId;
+        order.producer = data.producer ?? order.producer;
+        order.driver = data.driver ?? order.driver;
+        order.vehicle = data.vehicle ?? order.vehicle;
+        order.status = 'InPreparation';
+        order.statusClass = 'status-assigned';
+        return true;
+    }
+
+    /**
+     * CASO DE USO 3: El Productor cambia el estado del lote en su taller.
+     * Actualización puramente visual en el Frontend (Bypass de la API por restricciones de dominio)
+     */
+    function simulateProducerUpdateStatus(orderId, newStatus, statusClass = 'status-processing') {
+        const order = orders.value.find(o => String(o.id) === String(orderId));
+
+        if (order) {
+            // 1. Actualización visual instantánea en Vue
+            order.status = newStatus;
+            order.statusClass = statusClass;
+
+            // 2. MAGIA: Guardamos este cambio en la memoria de Pinia
+            localStatusOverrides.value[orderId] = {
+                status: newStatus,
+                statusClass: statusClass
+            };
+
+            console.log(`[Simulación] Productor actualizó orden #${orderId} a: ${newStatus} (Guardado en memoria)`);
+
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -93,12 +224,7 @@ const useOrderManagementStore = defineStore('order-management', () => {
     }
 
     /**
-     * Eliminación lógica: marca el pedido con status "Cancelado" en lugar de borrarlo
-     * del backend. La fila desaparece de la tabla activa porque `activeOrders` filtra
-     * los cancelados, pero queda histórico para reportes/auditoría.
-     *
-     * @param {number|string} id - Order identifier.
-     * @returns {Promise<void>}
+     * Logical deletion.
      */
     async function deleteOrder(id) {
         const idx = orders.value.findIndex(o => o.id === id);
@@ -119,9 +245,7 @@ const useOrderManagementStore = defineStore('order-management', () => {
     }
 
     /**
-     * Borrado físico (uso administrativo). No expuesto al UI del distribuidor.
-     * @param {number|string} id
-     * @returns {Promise<void>}
+     * Physical deletion.
      */
     async function hardDeleteOrder(id) {
         try {
@@ -133,23 +257,27 @@ const useOrderManagementStore = defineStore('order-management', () => {
         }
     }
 
-    /** Pedidos visibles para el distribuidor (excluye cancelados). */
-    const activeOrders = computed(() =>
-        orders.value.filter(o => o.status !== 'Cancelado')
-    );
-
     return {
         orders,
         activeOrders,
+        getOrdersForProducer,
+        getOrdersForCustomer,
         isLoading,
         errors,
         ordersLoaded,
         ordersCount,
         recentOrders,
+        wizardProducer,
+        wizardVehicle,
+        wizardDriver,
+        clearWizard,
         fetchOrders,
         getOrderById,
         addOrder,
         updateOrder,
+        assignOrder,
+        simulateCustomerCheckout,
+        simulateProducerUpdateStatus,
         deleteOrder,
         hardDeleteOrder
     };

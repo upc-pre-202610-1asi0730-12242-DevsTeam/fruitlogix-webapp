@@ -12,7 +12,7 @@
         <p class="page-subtitle">{{ t('orders.subtitle') }}</p>
       </div>
 
-      <div class="actions-area">
+      <div class="actions-area" style="flex-direction: row; align-items: center; gap: 1rem;">
         <pv-icon-field iconPosition="left" class="search-container">
           <pv-input-icon class="pi pi-search"/>
           <pv-input-text
@@ -21,18 +21,20 @@
               class="custom-search-input"
           />
         </pv-icon-field>
-
-        <div class="stats-cards">
-          <div class="stat-card">
-            <span class="stat-title">{{ t('orders.stats.total_active') }}</span>
-            <span class="stat-value">{{ totalActivos.toLocaleString() }}</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-title">{{ t('orders.stats.in_transit') }}</span>
-            <span class="stat-value">{{ transitOrdersCount.toLocaleString() }}</span>
-          </div>
-        </div>
       </div>
+    </div>
+
+    <!-- Quick Filters -->
+    <div class="quick-filters-row">
+      <button 
+        v-for="tab in ['Todos', 'Pendiente', 'En Preparación', 'En Ruta', 'Entregado', 'Cancelado']" 
+        :key="tab"
+        class="filter-pill"
+        :class="{ active: activeStatusTab === tab }"
+        @click="activeStatusTab = tab"
+      >
+        {{ tab }}
+      </button>
     </div>
 
     <!-- Table Area -->
@@ -46,43 +48,49 @@
           :current-page-report-template="t('orders.table.showing')"
           responsive-layout="scroll"
           class="custom-datatable"
+          rowHover
+          @row-click="goToOrderDetail"
       >
-        <pv-column field="id" :header="t('orders.table.id')">
+        <pv-column field="id" header="ID Pedido">
           <template #body="{ data }">
             <span class="id-cell">{{ data.id }}</span>
           </template>
         </pv-column>
 
-        <pv-column field="clientName" :header="t('orders.table.client')">
+        <pv-column field="clientName" header="Cliente">
           <template #body="{ data }">
             <div class="client-cell">
-              <span class="client-badge">{{ getInitials(data.clientName) }}</span>
-              <span class="client-name">{{ data.clientName }}</span>
+              <span class="client-badge">{{ getInitials(data.clientName || 'C ' + (data.commercialClientId || data.id)) }}</span>
+
+              <span class="client-name">{{ data.clientName ? data.clientName : 'Cliente #' + (data.commercialClientId || data.id) }}</span>
             </div>
           </template>
         </pv-column>
 
-        <pv-column :header="t('orders.table.fruit')">
+        <pv-column header="Productos">
           <template #body="{ data }">
-            <div class="fruit-cell">
-              <span class="fruit-icon-mini"><i class="pi pi-leaf"/></span>
-              <span class="fruit-name">{{ getFruitLabel(data) }}</span>
-            </div>
+            <span class="product-grouping">{{ getFruitLabelGroup(data) }}</span>
           </template>
         </pv-column>
 
-        <pv-column field="quantity" :header="t('orders.table.quantity')">
+        <pv-column field="producerId" header="Productor">
           <template #body="{ data }">
-            <span class="quantity-cell">{{ data.quantity }}</span>
+            <span class="client-name">{{ data.producerName || 'Sin Asignar' }}</span>
           </template>
         </pv-column>
 
-        <pv-column field="status" :header="t('orders.table.status')">
+        <pv-column field="deliveryDueDate" header="Fecha Entrega" sortable>
+           <template #body="{ data }">
+             <span class="quantity-cell">{{ formatDate(data.deliveryDueDate) }}</span>
+           </template>
+        </pv-column>
+
+        <pv-column field="status" header="Estado" sortable>
           <template #body="{ data }">
             <button
                 class="status-badge"
                 :class="statusClassFor(data.status)"
-                @click="showOrderState(data)"
+                @click="goToOrderDetail({ data })"
                 :title="t('orders.actions.view_tracking')"
             >
               <span class="status-dot"/>
@@ -91,22 +99,14 @@
           </template>
         </pv-column>
 
-        <pv-column :header="t('orders.table.actions')">
+        <pv-column header="Acciones" headerStyle="text-align: right">
           <template #body="{ data }">
-            <div class="row-actions">
-              <button
-                  class="icon-btn edit-btn"
-                  :class="{ disabled: isStatusRestricted(data.status) }"
-                  :title="isStatusRestricted(data.status) ? t('orders.actions.restricted_edit') : t('orders.actions.edit')"
-                  @click="!isStatusRestricted(data.status) && showOrderEdit(data)"
-              >
+            <div class="row-actions-right">
+              <button class="icon-btn-minimal" @click="goToOrderDetail({ data })" title="Ver detalle">
+                <i class="pi pi-eye"/>
+              </button>
+              <button class="icon-btn-minimal" :class="{ disabled: isStatusRestricted(data.status) }" @click="!isStatusRestricted(data.status) && showOrderEdit(data)" title="Editar">
                 <i class="pi pi-pencil"/>
-              </button>
-              <button class="icon-btn delete-btn" :title="t('orders.actions.delete')" @click="showDeleteConfirm(data)">
-                <i class="pi pi-trash"/>
-              </button>
-              <button class="assign-btn" :title="t('orders.actions.assign')" @click="showAssignDialog(data)">
-                {{ t('orders.actions.assign') }}
               </button>
             </div>
           </template>
@@ -121,9 +121,6 @@
         </template>
       </pv-data-table>
     </div>
-
-    <!-- Dialog for Order Tracking -->
-    <order-state v-model:visible="isOrderStateVisible" :order="selectedOrder" @status-change="handleStatusChange"/>
 
     <!-- Dialog for Order Editing -->
     <order-edit v-model:visible="isOrderEditVisible" :order="selectedOrder" @save="handleOrderSave"/>
@@ -216,17 +213,18 @@
 <script setup>
 import {ref, onMounted, computed} from 'vue';
 import {useI18n} from 'vue-i18n';
-import OrderState from './order-state.vue';
+import {useRouter} from 'vue-router';
 import OrderEdit from './order-edit.vue';
-import AssignProducerDialog from './assign-producer-dialog.vue';
 import {useOrderManagementStore} from '../../application/order-management.store.js';
+
+const router = useRouter();
 
 const orderStore = useOrderManagementStore();
 const {t} = useI18n();
 
 const searchQuery = ref('');
+const activeStatusTab = ref('Todos');
 
-const isOrderStateVisible = ref(false);
 const isOrderEditVisible = ref(false);
 const isDeleteConfirmVisible = ref(false);
 const isFruitsDetailVisible = ref(false);
@@ -240,17 +238,32 @@ const orderToDelete = ref(null);
 const orders = computed(() => orderStore.activeOrders);
 
 const filteredOrders = computed(() => {
+  let result = orders.value;
+
+  if (activeStatusTab.value !== 'Todos') {
+    result = result.filter(o => {
+        const s = (o.status || '').toLowerCase();
+        const tab = activeStatusTab.value.toLowerCase();
+        if (tab === 'en preparación' && (s.includes('prepar') || s.includes('asignado'))) return true;
+        if (tab === 'en ruta' && (s.includes('ruta') || s.includes('camino') || s.includes('transit'))) return true;
+        if (tab === 'pendiente' && (s.includes('pend') || s.includes('registrado'))) return true;
+        return s.includes(tab);
+    });
+  }
+
   const q = searchQuery.value.toLowerCase().trim();
-  if (!q) return orders.value;
-  return orders.value.filter(o => {
-    const fruitLabel = getFruitLabel(o).toLowerCase();
-    return (
-        (o.id ?? '').toLowerCase().includes(q) ||
-        (o.clientName ?? '').toLowerCase().includes(q) ||
-        (o.status ?? '').toLowerCase().includes(q) ||
-        fruitLabel.includes(q)
-    );
-  });
+  if (q) {
+    result = result.filter(o => {
+      const fruitLabel = getFruitLabelGroup(o).toLowerCase();
+      return (
+          (o.id ?? '').toLowerCase().includes(q) ||
+          (o.clientName ?? '').toLowerCase().includes(q) ||
+          (o.status ?? '').toLowerCase().includes(q) ||
+          fruitLabel.includes(q)
+      );
+    });
+  }
+  return result;
 });
 
 const totalActivos = computed(() => orders.value.length);
@@ -259,8 +272,17 @@ const transitOrdersCount = computed(() =>
 );
 
 onMounted(() => {
-  orderStore.fetchOrders();
+  if (!orderStore.ordersLoaded) {
+    orderStore.fetchOrders();
+  }
 });
+
+function formatDate(dateString) {
+  if (!dateString) return '24 Oct 2026'; // Default fallback since mock data is null
+  const d = new Date(dateString);
+  if (Number.isNaN(d.getTime())) return dateString;
+  return d.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' });
+}
 
 /** Returns 2-letter uppercase initials from a client name. */
 function getInitials(name) {
@@ -272,14 +294,49 @@ function getInitials(name) {
 }
 
 /** Resolves a printable fruit label from order shape (entity or raw JSON). */
-function getFruitLabel(order) {
-  if (!order) return '';
-  if (order.product) return order.product;
+function getFruitLabelGroup(order) {
+  if (!order) return '—';
+
+  // 1. LA MAGIA: Leemos la lista "items" que viene de tu API de C#
+  if (Array.isArray(order.items) && order.items.length > 0) {
+    const mainFruit = order.items[0].productName || 'Fruta';
+    const othersCount = order.items.length - 1;
+
+    // Sumamos los kilos de todos los items para tener el total exacto
+    const totalKg = order.items.reduce((sum, item) => sum + (item.quantityKg || 0), 0);
+    const qtyText = totalKg > 0 ? ` (${totalKg} kg)` : '';
+
+    if (othersCount > 0) {
+      return `${mainFruit} + ${othersCount} frutas${qtyText}`;
+    } else {
+      return `${mainFruit}${qtyText}`;
+    }
+  }
+
+  // 2. Fallbacks (por si acaso usas datos antiguos en alguna parte)
+  const qty = order.quantity ? ` (${order.quantity})` : '';
+
   const fruits = order.selectedFruits;
   if (Array.isArray(fruits) && fruits.length > 0) {
-    return fruits.length === 1 ? fruits[0].name : `${fruits[0].name} +${fruits.length - 1}`;
+    const mainFruit = fruits[0].name || 'Fruta';
+    const othersCount = fruits.length - 1;
+    return othersCount > 0 ? `${mainFruit} + ${othersCount} frutas${qty}` : `${mainFruit}${qty}`;
   }
-  return order.fruitType ?? '—';
+
+  const name = order.productName || order.product || order.fruitType;
+  if (name) {
+    return `${name}${qty}`;
+  }
+
+  // Si de verdad llega vacío
+  return `Lote de Fruta${qty}`;
+}
+/** Navigates to the order detail view. */
+function goToOrderDetail(event) {
+  const order = event.data;
+  if (order?.id) {
+    router.push({ name: 'order-detail', params: { id: order.id } });
+  }
 }
 
 /** Returns the CSS class for a given status string. */
@@ -293,11 +350,6 @@ function statusClassFor(status) {
   if (s.includes('registrado') || s === 'pending') return 'status-registered';
   if (s.includes('camino') || s.includes('transito')) return 'status-transit';
   return 'status-registered';
-}
-
-function showOrderState(order) {
-  selectedOrder.value = order;
-  isOrderStateVisible.value = true;
 }
 
 function showOrderEdit(order) {
@@ -342,13 +394,6 @@ async function confirmDelete() {
   await orderStore.deleteOrder(orderToDelete.value.id);
   isDeleteConfirmVisible.value = false;
   orderToDelete.value = null;
-}
-
-async function handleStatusChange({orderId, newStatus}) {
-  const order = orders.value.find(o => o.id === orderId);
-  if (!order) return;
-  const updatedOrder = {...order, status: newStatus, statusClass: statusClassFor(newStatus)};
-  await orderStore.updateOrder(orderId, updatedOrder);
 }
 
 async function handleOrderSave(orderData) {
@@ -1106,5 +1151,119 @@ function isStatusRestricted(status) {
 
 .close-detail-btn:hover {
   background: #d6ec6e;
+}
+
+/* --- New elements --- */
+.btn-outline-filter {
+  background: transparent;
+  color: #c9e265;
+  border: 1.5px solid #3d5c42;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+.btn-outline-filter:hover {
+  background: #2a3d2e;
+}
+.btn-solid-primary {
+  background: #c9e265;
+  color: #122216;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-solid-primary:hover {
+  background: #d6ec6e;
+}
+.quick-filters-row {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+.filter-pill {
+  background: #1e2d22;
+  color: #9ab39d;
+  border: 1px solid #2a3d2e;
+  padding: 0.5rem 1.25rem;
+  border-radius: 999px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.filter-pill:hover {
+  background: #2a3d2e;
+  color: #c9e265;
+}
+.filter-pill.active {
+  background: #2a3d2e;
+  color: #c9e265;
+  border-color: #3d5c42;
+}
+.product-grouping {
+  color: #c9e265;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.row-actions-right {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+.icon-btn-minimal {
+  background: transparent;
+  color: #9eb5a1;
+  border: 1px solid transparent;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-size: 0.95rem;
+}
+.icon-btn-minimal:hover {
+  background: #2a3d2e;
+  color: #c9e265;
+  border-color: #3d5c42;
+}
+.icon-btn-minimal.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+:deep(.p-datatable-tbody > tr) {
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+:deep(.p-datatable-tbody > tr:hover > td) {
+  background-color: #233527 !important;
+}
+
+/* Sorting Icons */
+:deep(.p-sortable-column-icon) {
+  color: #6b8a6b !important;
+  width: 12px;
+  height: 12px;
+  margin-left: 0.4rem;
+}
+:deep(.p-sortable-column.p-highlight .p-sortable-column-icon) {
+  color: #c9e265 !important;
 }
 </style>

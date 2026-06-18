@@ -21,26 +21,32 @@ export const PaymentMethod = {
  * Invoice Entity
  */
 export class Invoice {
-    constructor(id, orderRef, issueDate, totalAmount, status) {
+    constructor(id, clientId, orderId, totalAmount, currency, dueDate, status, invoiceType, issuedAt, paidAt) {
         this.id = id;
-        this.orderRef = orderRef;
-        this.issueDate = issueDate;
+        this.clientId = clientId;
+        this.orderId = orderId;
         this.totalAmount = totalAmount;
-        this.status = status;
+        this.currency = currency;
+        this.dueDate = dueDate;         // DateOnly: "2024-05-15"
+        this.status = status;           // "PENDING" | "PAID" | "OVERDUE" | "FAILED" | "REFUNDED"
+        this.invoiceType = invoiceType; // "RECEIVABLE" | "PAYABLE"
+        this.issuedAt = issuedAt;
+        this.paidAt = paidAt;
     }
 }
 
-/**
- * PaymentTransaction Entity
- */
 export class PaymentTransaction {
-    constructor(id, amount, timestamp, method, gatewayRef, status, details = {}) {
+    constructor(id, invoiceId, amount, currency, method, gateway, gatewayRef, status, cardEnding, cardBrand, processedAt) {
         this.id = id;
+        this.invoiceId = invoiceId;
         this.amount = amount;
-        this.timestamp = timestamp;
+        this.currency = currency;
         this.method = method;
+        this.gateway = gateway;
         this.gatewayRef = gatewayRef;
         this.status = status;
-        this.details = details; // card ending, card brand etc.
+        this.cardEnding = cardEnding;
+        this.cardBrand = cardBrand;
+        this.processedAt = processedAt;
     }
 }

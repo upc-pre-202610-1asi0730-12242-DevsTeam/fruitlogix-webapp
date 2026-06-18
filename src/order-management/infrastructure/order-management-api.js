@@ -44,6 +44,17 @@ export class OrderManagementApi extends BaseApi {
     /** @param {number|string} id @param {Object} resource */
     updateOrder(id, resource) { return this.#ordersEndpoint.update(id, resource); }
 
+    /** * Llama al PATCH específico de C# para asignar el productor
+     * @param {number|string} id
+     * @param {Object} resource
+     */
+    assignProducer(id, resource) {
+        return this.http.patch(`${ordersEndpointPath}/${id}/assign-producer`, resource);
+    }
+    getOrdersByProducer(producerId) {
+        return this.http.get(`${ordersEndpointPath}/producer/${producerId}`);
+    }
+
     /** @param {number|string} id */
     deleteOrder(id)         { return this.#ordersEndpoint.delete(id); }
 

@@ -19,4 +19,6 @@ export class PaymentManagementApi extends BaseApi {
 
     getTransactions() { return this.#transactionsEndpoint.getAll(); }
     createTransaction(resource) { return this.#transactionsEndpoint.create(resource); }
+    createInvoice(resource) { return this.#invoicesEndpoint.create(resource); }
+
 }
