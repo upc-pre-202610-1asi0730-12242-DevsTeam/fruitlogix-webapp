@@ -1,5 +1,7 @@
 # Web Application - Fruitlogix
-Plataforma integral para la gestión de la cadena de suministro agrícola, conectando a Productores, Distribuidores y Clientes comerciales.
+**URL de Producción:** https://fruitlogixweb.web.app/dashboard
+
+Plataforma integral para la gestión de la cadena de suministro agrícola...
 
 **Developer Team:** DevsTeam  
 **Product Name:** Fruitlogix
@@ -75,8 +77,3 @@ Revisa la bandeja de pedidos asignados a tu cuenta.
 Cambia el estado del pedido a "En Preparación" (para notificar al Distribuidor que el proceso de cosecha, separación o empaque ha comenzado).
 
 (Opcional) Responde el chat del Distribuidor para confirmar la recepción del encargo.
-
-
-***
-
-Con esto, tu repositorio queda con un aspecto completamente profesional. Puedes hacer el `co
