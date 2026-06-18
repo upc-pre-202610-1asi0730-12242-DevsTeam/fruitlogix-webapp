@@ -33,17 +33,19 @@
         han sido asignados y despachados para el pedido <strong>{{ order?.id || 'PED-089' }}</strong>.
       </p>
 
-      <button class="return-btn" @click="confirmAndActivate">
-        Confirmar y Asignar Pedido <i class="pi pi-send"></i>
+      <button class="return-btn" @click="confirmAndActivate" :disabled="isProcessing">
+        {{ isProcessing ? 'Procesando...' : 'Confirmar y Asignar Pedido' }}
+        <i class="pi pi-send"></i>
       </button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useOrderManagementStore } from '../../application/order-management.store.js';
+import { OrderManagementApi } from '../../infrastructure/order-management-api.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -71,30 +73,43 @@ function goBack() {
   }
 }
 
-function confirmAndActivate() {
-  // Capture the order ID before any mutations
+const isProcessing = ref(false);
+
+async function confirmAndActivate() {
+  if (isProcessing.value) return; // ← evita doble click
+  isProcessing.value = true;
+
   const orderId = order.value?.id;
   if (!orderId) {
     router.push({ name: 'order-list' });
     return;
   }
 
-  // Synchronous local state update (no await, no network dependency)
-  const success = orderStore.assignOrder(orderId, {
-    producerId: Number(orderStore.wizardProducer?.id) || 1,
-    producer: producerName.value,
-    driver: driverName.value,
-    vehicle: vehicleName.value,
-    status: 'En Ruta',
-    statusClass: 'status-transit'
-  });
+  try {
+    const orderManagementApi = new OrderManagementApi();
+    await orderManagementApi.assignProducer(orderId, {
+      producerId: Number(orderStore.wizardProducer?.id) || 1
+    });
 
-  console.log('[Step 3] assignOrder result:', success, 'navigating to order-detail with id:', orderId);
+    orderStore.assignOrder(orderId, {
+      producerId: Number(orderStore.wizardProducer?.id) || 1,
+      producer: producerName.value,
+      driver: driverName.value,
+      vehicle: vehicleName.value,
+      status: 'En Ruta',
+      statusClass: 'status-transit'
+    });
 
-  // Clear wizard state
+    await orderStore.fetchOrders();
+
+  } catch (error) {
+    console.error('Error asignando productor:', error);
+    alert('No se pudo asignar el productor. Intenta de nuevo.');
+    isProcessing.value = false;
+    return;
+  }
+
   orderStore.clearWizard();
-
-  // Navigate immediately — no network call blocking this
   router.push({ name: 'order-detail', params: { id: orderId } });
 }
 </script>

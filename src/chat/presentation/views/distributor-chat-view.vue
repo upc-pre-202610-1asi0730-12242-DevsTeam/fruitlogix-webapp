@@ -8,64 +8,89 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+<script setup>
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import AppHeader  from '../../../shared/presentation/components/app-header.vue';
-import ChatList   from '../components/chat-list.vue';
+import AppHeader from '../../../shared/presentation/components/app-header.vue';
+import ChatList from '../components/chat-list.vue';
 import ChatWindow from '../components/chat-window.vue';
+import { ChatApi } from '../../infrastructure/chat-api.js';
 
 const route = useRoute();
-const activeId = ref('ORD-2024-003');
+const chatApi = new ChatApi();
 
-// 🟢 ATRAPAMOS EL ID DESDE LA URL SI VENIMOS DE OTRA PANTALLA
-onMounted(() => {
-  if (route.query.orderId) {
-    activeId.value = String(route.query.orderId);
+const DISTRIBUTOR_ID = 2;
+
+const activeConversationId = ref(null);
+const conversations = ref([]);
+const allMessages = ref({});
+
+onMounted(async () => {
+  try {
+    const res = await chatApi.getConversations(DISTRIBUTOR_ID);
+    conversations.value = res.data.map(c => ({
+      id: c.id,
+      orderId: c.orderId,
+      preview: 'Ver mensajes...',
+      time: c.createdAt ? new Date(c.createdAt).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) : '',
+      unread: 0
+    }));
+
+    // Si venimos desde otra pantalla con orderId en query, seleccionar esa conversación
+    if (route.query.orderId) {
+      const match = conversations.value.find(c => String(c.orderId) === String(route.query.orderId));
+      if (match) activeConversationId.value = match.id;
+    }
+
+    if (!activeConversationId.value && conversations.value.length > 0) {
+      activeConversationId.value = conversations.value[0].id;
+    }
+  } catch (e) {
+    console.error('Error cargando conversaciones:', e);
   }
 });
 
-// Usamos ref() para que la vista previa se actualice al enviar mensajes
-const conversations = ref([
-  { id:'ORD-2024-003', preview:'Ya estamos empacando, sale mañana', time:'9:30 AM', unread:2 },
-  { id:'ORD-2024-004', preview:'Buenas tardes. Sí, ya estamos...',  time:'Ayer',    unread:0 },
-  { id:'ORD-2024-005', preview:'Lote aprobado por Control...',      time:'20 May',  unread:0 },
-]);
-
-const allMessages = ref<Record<string, any[]>>({
-  'ORD-2024-003': [
-    { id:1, from:'me',   text:'Hola Carlos, ¿cómo va el lote de Mango?', time:'8:15 AM' },
-    { id:2, from:'prod', text:'Ya estamos empacando, sale mañana',       time:'8:17 AM', unread:true },
-  ],
-  'ORD-2024-004': [
-    { id:1, from:'me',   text:'Carlos, ¿podemos adelantar el empaque de palta?', time:'Ayer 4:15 PM' },
-    { id:2, from:'prod', text:'Buenas tardes. Sí, ya estamos en la línea de lavado.', time:'Ayer 4:20 PM' }
-  ],
-  'ORD-2024-005': [
-    { id:1, from:'me',   text:'Lote aprobado por Control de Calidad del almacén central.', time:'20 May 10:00 AM' },
-  ],
+watch(activeConversationId, async (id) => {
+  if (!id || allMessages.value[id]) return;
+  try {
+    const res = await chatApi.getMessages(id);
+    allMessages.value[id] = res.data.map(m => ({
+      id: m.id,
+      from: m.senderId === DISTRIBUTOR_ID ? 'me' : 'dist',
+      text: m.content,
+      time: new Date(m.sentAt).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
+    }));
+  } catch (e) {
+    console.error('Error cargando mensajes:', e);
+  }
 });
 
-const currentMessages = computed(() => allMessages.value[activeId.value] ?? []);
+const currentMessages = computed(() => allMessages.value[activeConversationId.value] ?? []);
+const activeOrderId = computed(() => {
+  const conv = conversations.value.find(c => c.id === activeConversationId.value);
+  return conv?.orderId ?? '';
+});
 
-let nextId = 10;
-function sendMsg(text: string) {
-  if (!allMessages.value[activeId.value]) allMessages.value[activeId.value] = [];
-  
-  // Agregar el mensaje al historial
-  allMessages.value[activeId.value].push({
-    id: nextId++, 
-    from:'me', 
-    text,
-    time: new Date().toLocaleTimeString('es', {hour:'2-digit', minute:'2-digit'}),
-  });
-
-  // Actualizar el texto de vista previa en la barra izquierda
-  const conv = conversations.value.find(c => c.id === activeId.value);
-  if (conv) {
-    conv.preview = text;
-    conv.time = 'Ahora';
-    conv.unread = 0;
+async function sendMsg(text) {
+  if (!activeConversationId.value) return;
+  try {
+    const res = await chatApi.sendMessage(activeConversationId.value, {
+      senderId: DISTRIBUTOR_ID,
+      content: text
+    });
+    if (!allMessages.value[activeConversationId.value]) {
+      allMessages.value[activeConversationId.value] = [];
+    }
+    allMessages.value[activeConversationId.value].push({
+      id: res.data.id,
+      from: 'me',
+      text: res.data.content,
+      time: new Date(res.data.sentAt).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
+    });
+    const conv = conversations.value.find(c => c.id === activeConversationId.value);
+    if (conv) { conv.preview = text; conv.time = 'Ahora'; }
+  } catch (e) {
+    console.error('Error enviando mensaje:', e);
   }
 }
 </script>

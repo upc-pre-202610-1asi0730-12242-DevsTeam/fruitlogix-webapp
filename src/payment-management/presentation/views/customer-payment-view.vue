@@ -131,6 +131,10 @@
             <span class="security-badge"><i class="pi pi-lock" style="margin-right: 4px;"></i> SSL Seguro</span>
             <span class="security-badge"><i class="pi pi-shield" style="margin-right: 4px;"></i> Datos encriptados</span>
           </div>
+          <!-- CAMBIOS CLAUDE -->
+          <div v-if="paymentError" style="color: #f87171; font-size: 13px; font-weight: 600; margin-bottom: 12px; text-align: center;">
+            {{ paymentError }}
+          </div>
 
           <button class="btn-pay" @click="processPayment" :disabled="processing || !isFormValid">
             <span v-if="processing"><span class="spinner"></span> {{ t('pay.processing', 'Procesando...') }}</span>
@@ -172,11 +176,13 @@ import { ref, computed, onMounted } from 'vue';
 import QRCode from 'qrcode';
 import { useRoute, useRouter } from 'vue-router';
 import { useCartStore } from '../../../order-management/application/cart.store.js';
+import { usePaymentManagementStore } from '../../application/payment-management.store.js';
 import { useI18n } from 'vue-i18n';
 
 const route = useRoute();
 const router = useRouter();
 const cartStore = useCartStore();
+const paymentStore = usePaymentManagementStore();
 
 const orderId = route.params.orderId;
 const order = computed(() => cartStore.orders.find(o => o.id === orderId));
@@ -188,26 +194,29 @@ const cardExpiry = ref('');
 const cardCvv = ref('');
 const isFlipped = ref(false);
 const processing = ref(false);
+const paymentError = ref('');
 const { t } = useI18n();
 
 const qrDataUrl = ref('');
 
 onMounted(async () => {
   qrDataUrl.value = await QRCode.toDataURL('https://yape.com.pe/pagar/fruitlogix', {
-    width: 220,
-    margin: 2,
-    color: {
-      dark: '#6e1281',
-      light: '#FFFFFF'
-    }
+    width: 220, margin: 2,
+    color: { dark: '#6e1281', light: '#FFFFFF' }
   });
 });
 
 const isFormValid = computed(() => {
   if (payMethod.value === 'card') {
-    return cardNumber.value.length === 19 && cardName.value.length > 3 && cardExpiry.value.length === 5 && cardCvv.value.length === 3;
+    return cardNumber.value.length === 19 && cardName.value.length > 3
+        && cardExpiry.value.length === 5 && cardCvv.value.length === 3;
   }
   return true;
+});
+
+const realInvoiceId = computed(() => {
+  // Busca la invoice del backend que corresponde a este order
+  return parseInt(route.query.invoiceId) || 1;
 });
 
 function formatCardPreview(num) {
@@ -221,8 +230,7 @@ function formatCardPreview(num) {
 }
 
 function formatCardNumber(e) {
-  let val = e.target.value.replace(/\D/g, '');
-  val = val.slice(0, 16);
+  let val = e.target.value.replace(/\D/g, '').slice(0, 16);
   cardNumber.value = val.replace(/(.{4})/g, '$1 ').trim();
 }
 
@@ -250,13 +258,49 @@ function getCardIcon() {
 
 function formatDate(date) {
   if (!date) return '';
-  return new Date(date + 'T12:00:00').toLocaleDateString('es-PE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  return new Date(date + 'T12:00:00').toLocaleDateString('es-PE', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
 }
 
 async function processPayment() {
   processing.value = true;
-  await new Promise(r => setTimeout(r, 2000));
-  cartStore.payOrder(orderId);
+  paymentError.value = '';
+
+  try {
+    // Simular delay de procesamiento (realista)
+    await new Promise(r => setTimeout(r, 2000));
+
+    // Determinar método y marca de tarjeta
+    const method = payMethod.value === 'card' ? 'CREDIT_CARD' : 'YAPE';
+    const cardBrand = payMethod.value === 'card' ? getCardBrand() || null : null;
+    const cardEnding = payMethod.value === 'card'
+        ? cardNumber.value.replace(/\s/g, '').slice(-4)
+        : null;
+
+    // POST al backend → crear PaymentTransaction
+    // invoiceId: usamos el orderId como referencia (ajusta si tienes el invoiceId real)
+    await paymentStore.processPayment({
+      invoiceId: realInvoiceId.value, // ← antes era hardcodeado a 1
+      amount: order.value.total,
+      currency: 'PEN',
+      method: method,
+      gateway: payMethod.value === 'yape' ? 'IZIPAY' : 'CULQI',
+      gatewayRef: `REF-${Date.now()}`,
+      cardEnding: cardEnding,
+      cardBrand: cardBrand
+    });
+
+    // Marcar el pedido como pagado localmente también
+    cartStore.payOrder(orderId);
+
+  } catch (error) {
+    console.error('Payment failed:', error);
+    paymentError.value = 'Hubo un error procesando el pago. Intenta de nuevo.';
+    processing.value = false;
+    return;
+  }
+
   processing.value = false;
 }
 </script>

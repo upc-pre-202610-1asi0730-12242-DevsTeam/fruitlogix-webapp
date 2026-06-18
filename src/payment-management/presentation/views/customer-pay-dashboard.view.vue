@@ -10,7 +10,7 @@
     <!-- Filtros -->
     <div class="filter-bar">
       <button :class="['filter-btn', { active: filter === 'todos' }]" @click="filter = 'todos'">
-        Todos <span class="filter-count">{{ cartStore.orders.length }}</span>
+        Todos <span class="filter-count">{{ orders.length }}</span>
       </button>
       <button :class="['filter-btn', { active: filter === 'pagado' }]" @click="filter = 'pagado'">
         Pagados <span class="filter-count">{{ pagados.length }}</span>
@@ -18,6 +18,10 @@
       <button :class="['filter-btn', { active: filter === 'pendiente' }]" @click="filter = 'pendiente'">
         Pendientes <span class="filter-count pending-count">{{ pendientes.length }}</span>
       </button>
+    </div>
+
+    <div v-if="isLoading" style="text-align:center; padding: 40px; color: #9ab39d; font-weight: 700;">
+      Cargando pagos...
     </div>
 
     <!-- Empty state -->
@@ -94,27 +98,84 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { useCartStore } from '../../../order-management/application/cart.store.js';
+import { OrderManagementApi } from '../../../order-management/infrastructure/order-management-api.js';
+import { PaymentManagementApi } from '../../infrastructure/payment-management-api.js';
 
 const router = useRouter();
-const cartStore = useCartStore();
 const { t } = useI18n();
 
+const orderApi = new OrderManagementApi();
+const paymentApi = new PaymentManagementApi();
+
+const orders = ref([]);
+const isLoading = ref(false);
 const filter = ref('todos');
 
-const pagados = computed(() => cartStore.orders.filter(o => o.paymentStatus === 'PAGADO'));
-const pendientes = computed(() => cartStore.orders.filter(o => o.paymentStatus !== 'PAGADO'));
+onMounted(async () => {
+  isLoading.value = true;
+  try {
+    const [ordersRes, transactionsRes, invoicesRes] = await Promise.all([
+      orderApi.getOrders(),
+      paymentApi.getTransactions(),
+      paymentApi.getInvoices()
+    ]);
+
+    const transactions = transactionsRes.data;
+    const invoices = invoicesRes.data;
+
+    // 1. Invoices que tienen transaction SUCCESS
+    const paidInvoiceIds = new Set(
+        transactions
+            .filter(t => t.status === 'SUCCESS')
+            .map(t => t.invoiceId)
+    );
+
+    // 2. OrderIds que tienen invoice pagada
+    const paidOrderIds = new Set(
+        invoices
+            .filter(i => paidInvoiceIds.has(i.id))
+            .map(i => i.orderId)
+            .filter(Boolean)
+    );
+
+    orders.value = ordersRes.data.map(order => ({
+      id: order.id,
+      createdAt: order.createdAt,
+      address: order.deliveryAddress,
+      deliveryDate: order.deliveryDueDate,
+      total: order.totalAmount,
+      paymentStatus: paidOrderIds.has(order.id) ? 'PAGADO' : 'PENDIENTE',
+      items: (order.items || []).map(item => ({
+        product: {
+          id: item.productId,
+          name: item.productName,
+          price: item.unitPrice,
+          unit: 'kg'
+        },
+        quantity: item.quantityKg
+      }))
+    }));
+  } catch (error) {
+    console.error('Error cargando payments dashboard:', error);
+  } finally {
+    isLoading.value = false;
+  }
+});
+
+const pagados = computed(() => orders.value.filter(o => o.paymentStatus === 'PAGADO'));
+const pendientes = computed(() => orders.value.filter(o => o.paymentStatus === 'PENDIENTE'));
 
 const filteredOrders = computed(() => {
   if (filter.value === 'pagado') return pagados.value;
   if (filter.value === 'pendiente') return pendientes.value;
-  return cartStore.orders;
+  return orders.value;
 });
 
 function formatDate(dateStr) {
+  if (!dateStr) return '';
   return new Date(dateStr).toLocaleDateString('es-PE', {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit'

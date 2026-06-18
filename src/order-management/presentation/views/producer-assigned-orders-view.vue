@@ -212,57 +212,72 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useOrderManagementStore } from '../../application/order-management.store.js';
 import { OrderManagementApi } from '../../infrastructure/order-management-api.js';
+import { ChatApi } from '../../../chat/infrastructure/chat-api.js';
 
 const router = useRouter();
 const orderStore = useOrderManagementStore();
 const orderManagementApi = new OrderManagementApi();
+const chatApi = new ChatApi();
 
 const selectedOrderId = ref(null);
 const newMessage = ref('');
+const activeConversationId = ref(null);
+const visualOrders = ref([]);
 
-// 🟢 FUNCIÓN PARA IR AL CHAT GRANDE Y ENVIARLE EL ID DEL PEDIDO
-const goToFullChat = () => {
-  if (selectedOrder.value && selectedOrder.value.id) {
-    router.push({ 
-      name: 'producer-chat', 
-      query: { orderId: selectedOrder.value.id } // Enviamos el ID original (ej: ORD-2024-003)
-    });
+const PRODUCER_ID = 3;
+
+async function loadConversationForOrder(orderId) {
+  try {
+    const res = await chatApi.getConversations(PRODUCER_ID);
+    const match = res.data.find(c => String(c.orderId) === String(orderId));
+    if (match) {
+      activeConversationId.value = match.id;
+      const msgsRes = await chatApi.getMessages(match.id);
+      const order = visualOrders.value.find(o => o.id === String(orderId));
+      if (order) {
+        order.chat = msgsRes.data.map(m => ({
+          sender: m.senderId === PRODUCER_ID ? 'Tú' : 'Distribuidor',
+          text: m.content,
+          class: m.senderId === PRODUCER_ID ? 'sent' : 'received'
+        }));
+      }
+    }
+  } catch (e) {
+    console.error('Error cargando chat del mini-chat:', e);
   }
-};
+}
 
-// 🟢 FUNCIÓN PARA ENVIAR MENSAJES DENTRO DEL MINI-CHAT
-const sendMessage = () => {
+async function sendMessage() {
   if (!newMessage.value.trim() || !selectedOrder.value) return;
-
-  const order = visualOrders.value.find(o => o.id === selectedOrderId.value);
-  if (order) {
-    order.chat.push({
-      sender: 'Tú',
-      text: newMessage.value.trim(),
-      class: 'sent'
-    });
+  const text = newMessage.value.trim();
+  try {
+    if (activeConversationId.value) {
+      await chatApi.sendMessage(activeConversationId.value, {
+        senderId: PRODUCER_ID,
+        content: text
+      });
+    }
+    const order = visualOrders.value.find(o => o.id === selectedOrderId.value);
+    if (order) {
+      order.chat.push({ sender: 'Tú', text, class: 'sent' });
+    }
+    newMessage.value = '';
+  } catch (e) {
+    console.error('Error enviando mensaje mini-chat:', e);
   }
-  
-  newMessage.value = ''; // Limpiamos el input
-};
+}
 
-// Sincronización e Inyección reactiva al montar la vista
-// Sincronización e Inyección reactiva al montar la vista
 onMounted(async () => {
   try {
-    // 1. LLENAMOS EL STORE DE PINIA PRIMERO (Esto faltaba)
     await orderStore.fetchOrders();
 
-    // producerId = 1 hardcodeado por ahora (sin IAM)
-    const PRODUCER_ID = 1;
-    const response = await orderManagementApi.getOrdersByProducer(PRODUCER_ID);
+    const response = await orderManagementApi.getOrdersByProducer(1);
     const realOrders = response.data;
 
     visualOrders.value = realOrders.map(order => ({
       id: String(order.id),
       client: `Cliente #${order.commercialClientId}`,
-      productsDesc: order.items.map(i =>
-          `${i.productName} — ${i.quantityKg} kg`).join(' • '),
+      productsDesc: order.items.map(i => `${i.productName} — ${i.quantityKg} kg`).join(' • '),
       date: order.deliveryDueDate,
       totalQty: `${order.items.reduce((s, i) => s + i.quantityKg, 0)} kg`,
       productsList: order.items.map(i => i.productName).join(', '),
@@ -270,38 +285,25 @@ onMounted(async () => {
       status: order.status,
       lotes: [],
       chat: [],
-      rawStatus: order.status, // Aseguramos que guarde el rawStatus
+      rawStatus: order.status,
       realStoreId: order.id
     }));
 
-    // Selecciona el primero por defecto
     if (visualOrders.value.length > 0) {
       selectedOrderId.value = visualOrders.value[0].id;
+      await loadConversationForOrder(visualOrders.value[0].id);
     }
   } catch (err) {
     console.warn('Error cargando órdenes del productor:', err.message);
   }
 });
-const visualOrders = ref([]);
 
 const getStoreStatus = (id) => {
-  let storeId = id;
-  if (id === 'ORD-2024-003') storeId = '089';
-  if (id === 'ORD-2024-004') storeId = '085';
-  if (id === 'ORD-2024-005') storeId = '082';
-
-  const storeOrder = orderStore.getOrderById(storeId);
+  const storeOrder = orderStore.getOrderById(id);
   if (!storeOrder) return { text: 'Pendiente Preparación', clazz: 'badge-warning' };
-  
-  if (storeOrder.status === 'ASSIGNED' || storeOrder.status === 'Pendiente') {
-    return { text: 'Pendiente Preparación', clazz: 'badge-warning' };
-  }
-  if (storeOrder.status === 'IN_PREPARATION' || storeOrder.status === 'En Preparación') {
-    return { text: 'En Preparación', clazz: 'badge-blue' };
-  }
-  if (storeOrder.status === 'READY' || storeOrder.status === 'Listo Despacho') {
-    return { text: 'Listo Despacho', clazz: 'badge-green' };
-  }
+  if (storeOrder.status === 'ASSIGNED' || storeOrder.status === 'Pending') return { text: 'Pendiente Preparación', clazz: 'badge-warning' };
+  if (storeOrder.status === 'IN_PREPARATION') return { text: 'En Preparación', clazz: 'badge-blue' };
+  if (storeOrder.status === 'READY') return { text: 'Listo Despacho', clazz: 'badge-green' };
   return { text: storeOrder.status, clazz: 'badge-light-green' };
 };
 
@@ -309,88 +311,59 @@ const selectedOrder = computed(() => {
   const spec = visualOrders.value.find(o => o.id === selectedOrderId.value);
   if (!spec) return null;
 
-  let storeId = selectedOrderId.value;
-  if (selectedOrderId.value === 'ORD-2024-003') storeId = '089';
-  if (selectedOrderId.value === 'ORD-2024-004') storeId = '085';
-  if (selectedOrderId.value === 'ORD-2024-005') storeId = '082';
-
-  const storeOrder = orderStore.getOrderById(storeId) || { status: 'ASSIGNED' };
+  const storeOrder = orderStore.getOrderById(selectedOrderId.value) || { status: 'ASSIGNED' };
   const statusMeta = getStoreStatus(selectedOrderId.value);
-  
+
   let btnText = 'Marcar Como En Preparación';
-  if (storeOrder.status === 'IN_PREPARATION' || storeOrder.status === 'En Preparación') {
-    btnText = 'Marcar Como Listo para Despacho';
-  } else if (storeOrder.status === 'READY' || storeOrder.status === 'Listo Despacho') {
-    btnText = 'Pedido Terminado';
-  }
+  if (storeOrder.status === 'IN_PREPARATION') btnText = 'Marcar Como Listo para Despacho';
+  else if (storeOrder.status === 'READY') btnText = 'Pedido Terminado';
 
   return {
     ...spec,
     status: statusMeta.text,
     badgeClass: statusMeta.clazz,
-    btnText: btnText,
+    btnText,
     rawStatus: storeOrder.status,
-    realStoreId: storeId
+    realStoreId: selectedOrderId.value
   };
 });
 
+const goToFullChat = () => {
+  if (selectedOrder.value) {
+    router.push({ name: 'producer-chat', query: { orderId: selectedOrder.value.id } });
+  }
+};
+
 const goToFullDetail = () => {
-  if (selectedOrder.value && selectedOrder.value.realStoreId) {
-    router.push({ 
-      name: 'producer-mis-pedidos-detalle', 
-      params: { id: selectedOrder.value.realStoreId } 
-    });
+  if (selectedOrder.value) {
+    router.push({ name: 'producer-mis-pedidos-detalle', params: { id: selectedOrder.value.realStoreId } });
   }
 };
 
 const handleActionClick = () => {
-  if (!selectedOrder.value) {
-    console.log("No hay orden seleccionada");
-    return;
-  }
+  if (!selectedOrder.value) return;
 
-  // Obtenemos tanto el estado de tu Store (Pinia) como el de la API C#
   const currentStatus = selectedOrder.value.rawStatus;
-  const apiStatus = selectedOrder.value.status;
   const targetId = selectedOrder.value.realStoreId;
 
-  console.log("Botón clickeado para la orden:", targetId);
-  console.log("Estado actual (Store):", currentStatus);
-  console.log("Estado actual (API):", apiStatus);
-
-  // Ampliamos la red para atrapar TODAS las posibles palabras o números que devuelva C# o Pinia
-  const isPending = ['ASSIGNED', 'Pendiente', 'Pending', 'PENDING', '0', 0].includes(currentStatus) ||
-      ['Pending', 'Pendiente', 'PENDIENTE PREPARACIÓN', 'PENDIENTE PREPARACIÓN', 0, '0'].includes(apiStatus);
-
-  const isPreparing = ['IN_PREPARATION', 'En Preparación', 'InPreparation', '1', 1].includes(currentStatus) ||
-      ['InPreparation', 'En Preparación', 'EN PREPARACIÓN', 1, '1'].includes(apiStatus);
+  const isPending = ['ASSIGNED', 'Pending', 'PENDING', 'InPreparation'].includes(currentStatus);
+  const isPreparing = ['IN_PREPARATION', 'InPreparation'].includes(currentStatus);
 
   if (isPending || isPreparing) {
-    console.log("Lógica aceptada. Navegando al reporte...");
-
-    if (isPending) {
-      orderStore.simulateProducerUpdateStatus(targetId, 'En Preparación', 'status-processing');
-    }
-
-    // ⚠️ ATENCIÓN AL ROUTER AQUÍ
+    if (isPending) orderStore.simulateProducerUpdateStatus(targetId, 'En Preparación', 'status-processing');
     router.push({
-      name: 'producer-inspecciones', // Cambiado a español por los logs de tu router
+      name: 'producer-inspecciones',
       query: {
         orderId: targetId,
         product: selectedOrder.value.productsList || 'Mango Kent',
         quantity: selectedOrder.value.totalQty || '1 kg'
       }
-    }).catch(err => {
-      console.error("Error de Vue Router:", err);
-      alert("Error de navegación. Revisa la consola.");
-    });
-
+    }).catch(err => console.error('Error de Vue Router:', err));
   } else {
-    alert(`El botón no funciona porque el estado es: Store[${currentStatus}] / API[${apiStatus}]`);
+    alert(`Estado no manejado: ${currentStatus}`);
   }
 };
 </script>
-
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
 

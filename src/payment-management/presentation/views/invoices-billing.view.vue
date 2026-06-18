@@ -78,35 +78,51 @@
         <pv-button label="Export Report" icon="pi pi-download" class="p-button-text export-btn" />
       </div>
 
-      <pv-data-table :value="store.invoices" class="custom-table" :loading="store.isLoading">
+      <pv-data-table :value="activeTab === 'receivables' ? store.receivables : store.payables"
+                     class="custom-table" :loading="store.isLoading">
         <pv-column field="id" header="INVOICE ID">
           <template #body="slotProps">
-            <span class="invoice-id">#{{ slotProps.data.id || 'INV-001' }}</span>
-          </template>
-        </pv-column>
-        
-        <!-- Columna dinámica según el flujo seleccionado -->
-        <pv-column :header="activeTab === 'receivables' ? 'CLIENT' : 'PRODUCER'">
-          <template #body>
-            <span class="party-name">{{ activeTab === 'receivables' ? 'AgroExport S.A.' : 'Finca El Paraíso' }}</span>
+            <span class="invoice-id">#{{ slotProps.data.id }}</span>
           </template>
         </pv-column>
 
-        <pv-column field="orderRef" header="ORDER REF"></pv-column>
-        <pv-column field="issueDate" header="ISSUE DATE"></pv-column>
-        
+        <!-- Columna dinámica: RECEIVABLE = clientId, PAYABLE = clientId (producer) -->
+        <pv-column :header="activeTab === 'receivables' ? 'CLIENT ID' : 'PRODUCER ID'">
+          <template #body="slotProps">
+            <span class="party-name">{{ slotProps.data.clientId }}</span>
+          </template>
+        </pv-column>
+
+        <pv-column field="orderId" header="ORDER REF">
+          <template #body="slotProps">
+            <span>{{ slotProps.data.orderId ? `ORD-${slotProps.data.orderId}` : '—' }}</span>
+          </template>
+        </pv-column>
+
+        <pv-column field="issuedAt" header="ISSUE DATE">
+          <template #body="slotProps">
+            <span>{{ slotProps.data.issuedAt ? formatDate(slotProps.data.issuedAt) : '—' }}</span>
+          </template>
+        </pv-column>
+
         <pv-column field="totalAmount" header="TOTAL AMOUNT">
           <template #body="slotProps">
-            <span class="amount-val">${{ (slotProps.data.totalAmount || 1250).toLocaleString() }}</span>
+    <span class="amount-val">
+      {{ slotProps.data.currency }} {{ slotProps.data.totalAmount.toLocaleString() }}
+    </span>
           </template>
         </pv-column>
-        
+
         <pv-column field="status" header="PAYMENT STATUS">
           <template #body="slotProps">
-            <pv-tag :value="slotProps.data.status || 'PENDING'" :severity="getStatusSeverity(slotProps.data.status || 'PENDING')" class="status-tag" />
+            <pv-tag
+                :value="slotProps.data.status"
+                :severity="getStatusSeverity(slotProps.data.status)"
+                class="status-tag"
+            />
           </template>
         </pv-column>
-        
+
         <pv-column header="ACTIONS">
           <template #body>
             <pv-button icon="pi pi-file-pdf" class="p-button-text p-button-secondary action-btn" />
@@ -145,6 +161,13 @@ onMounted(() => {
 
 function handleNewInvoice() {
   router.push({ name: 'payment-checkout' });
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'short', day: '2-digit', year: 'numeric'
+  });
 }
 
 const getStatusSeverity = (status) => {

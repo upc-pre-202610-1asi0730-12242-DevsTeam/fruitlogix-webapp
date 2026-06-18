@@ -61,7 +61,8 @@ export class OrderAssembler {
                 productId: Number(fruit.id || 1),
                 productName: fruit.name || "Fruta",
                 quantityKg: Number(fruit.quantity || 0),
-                unitPrice: Number(fruit.pricePerKg || fruit.unitPrice || 5.0)
+                unitPrice: Number(fruit.pricePerKg || fruit.unitPrice || 5.0),
+                subtotal: Number(fruit.quantity || 0) * Number(fruit.pricePerKg || fruit.unitPrice || 5.0)
             }))
         };
     }

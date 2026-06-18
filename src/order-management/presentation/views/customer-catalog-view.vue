@@ -71,7 +71,7 @@
         <div class="modal-body">
           <div class="order-items">
             <div v-for="item in cartStore.items" :key="item.product.id" class="order-item">
-              <span class="order-item-emoji">{{ item.product.image }}</span>
+              <span class="order-item-emoji"><i :class="['pi', item.product.image]"></i></span>
               <div class="order-item-info">
                 <span class="order-item-name">{{ item.product.name }}</span>
                 <span class="order-item-qty">{{ item.quantity }} {{ item.product.unit }}</span>
@@ -110,6 +110,7 @@ import { useI18n } from 'vue-i18n';
 // --- NUEVO: Importamos el API real de Render y el Traductor ---
 import { OrderManagementApi } from '../../infrastructure/order-management-api.js'; // Ajusta la ruta si es necesario
 import { OrderAssembler } from '../../infrastructure/order.assembler.js'; // Ajusta la ruta si es necesario
+import { PaymentManagementApi } from '../../../payment-management/infrastructure/payment-management-api.js';
 
 const { t } = useI18n();
 const cartStore = useCartStore();
@@ -117,6 +118,7 @@ const router = useRouter();
 const showOrderModal = ref(false);
 const deliveryAddress = ref('');
 const deliveryDate = ref('');
+const paymentApi = new PaymentManagementApi();
 
 // --- NUEVO: Instanciamos el servicio del API ---
 const orderManagementApi = new OrderManagementApi();
@@ -157,9 +159,8 @@ function continueToOrder() { showOrderModal.value = true; }
 async function confirmOrder() {
   if (!deliveryAddress.value || !deliveryDate.value) return;
 
-  // 1. Armamos el objeto en el formato local que tu UI maneja
   const orderEntity = {
-    commercialClientId: 1, // ID estático para pruebas (luego usará el del usuario logueado)
+    commercialClientId: 1,
     deliveryDueDate: deliveryDate.value,
     deliveryAddress: deliveryAddress.value,
     totalAmount: cartStore.total,
@@ -174,28 +175,40 @@ async function confirmOrder() {
   };
 
   try {
-    // 2. Pasamos el objeto por el Assembler inteligente para que lo traduzca al idioma de C#
     const apiPayload = OrderAssembler.toApi(orderEntity);
 
-    // 3. Enviamos la petición POST real a tu servidor de Render
-    await orderManagementApi.createOrder(apiPayload);
+    // 1. Crear el order en el backend
+    const orderResponse = await orderManagementApi.createOrder(apiPayload);
+    const createdOrderId = orderResponse.data.id;
 
-    // 4. Si la base de datos lo guarda con éxito, limpiamos el carrito local
-    if (cartStore.items) {
-      cartStore.items = []; // Vacía la lista de compras del Pinia Store
-    }
+    // 2. Crear la invoice vinculada al order
+    const invoiceResponse = await paymentApi.createInvoice({
+      clientId: 1,
+      orderId: createdOrderId,
+      amount: cartStore.total,
+      currency: 'PEN',
+      dueDate: deliveryDate.value,
+      invoiceType: 'RECEIVABLE'
+    });
+    const createdInvoiceId = invoiceResponse.data.id; // ← id real de la invoice
 
-    // 5. Cerramos el modal y limpiamos variables de control
+// 3. Guardar localmente para que customer-payment-view lo encuentre
+    const localOrder = cartStore.placeOrder(deliveryAddress.value, deliveryDate.value);
+
     showOrderModal.value = false;
     deliveryAddress.value = '';
     deliveryDate.value = '';
 
-    // 6. Redireccionamos al cliente directo a la lista de "Mis Pedidos" para ver el registro real
-    router.push('/customer/orders');
+// 4. Ir al flujo de pago con el invoiceId REAL de la invoice
+    router.push({
+      name: 'customer-payment',
+      params: { orderId: localOrder.id },
+      query: { invoiceId: createdInvoiceId } // ← antes era createdOrderId, ahora es createdInvoiceId
+    });
 
   } catch (error) {
-    console.error("Error crítico al guardar la orden en Render:", error);
-    alert("No se pudo procesar tu pedido en el servidor. Por favor, revisa la consola de desarrollo.");
+    console.error('Error al guardar la orden:', error);
+    alert('No se pudo procesar tu pedido. Intenta de nuevo.');
   }
 }
 </script>

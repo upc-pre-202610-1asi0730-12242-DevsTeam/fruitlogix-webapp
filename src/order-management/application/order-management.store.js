@@ -73,19 +73,17 @@ const useOrderManagementStore = defineStore('order-management', () => {
      * @returns {Promise<void>}
      */
     async function fetchOrders() {
-        this.ordersLoaded = false;
+        ordersLoaded.value = false;
+        isLoading.value = true;
         try {
-            // 1. Llamamos a los métodos con SUS NOMBRES CORRECTOS y al mismo tiempo
             const [ordersResponse, producersResponse] = await Promise.all([
                 orderManagementApi.getOrders(),
                 orderManagementApi.getProducers()
             ]);
 
-            // Extraemos los datos
             const rawOrders = ordersResponse.data || ordersResponse;
             const rawProducers = producersResponse.data || producersResponse;
 
-            // 2. Creamos el diccionario de productores
             const producerMap = {};
             if (Array.isArray(rawProducers)) {
                 rawProducers.forEach(p => {
@@ -93,24 +91,19 @@ const useOrderManagementStore = defineStore('order-management', () => {
                 });
             }
 
-            // 3. Unimos la información
-            const ordersWithProducerNames = rawOrders.map(order => {
+            orders.value = rawOrders.map(order => {
                 let prodName = 'Sin Asignar';
                 if (order.producerId) {
                     prodName = producerMap[order.producerId] || `Productor #${order.producerId}`;
                 }
-                return {
-                    ...order,
-                    producerName: prodName
-                };
+                return { ...order, producerName: prodName };
             });
 
-            // Guardamos la data procesada
-            this.orders = ordersWithProducerNames;
-            this.ordersLoaded = true;
-
+            ordersLoaded.value = true;
         } catch (error) {
-            console.error("Error al cargar órdenes y productores:", error);
+            console.error('Error al cargar órdenes y productores:', error);
+        } finally {
+            isLoading.value = false;
         }
     }
     /**
@@ -177,24 +170,12 @@ const useOrderManagementStore = defineStore('order-management', () => {
             console.error('[assignOrder] Order not found:', orderId);
             return false;
         }
-
-        // 1. Actualización visual en Vue (para que lo veas al instante)
         order.producerId = data.producerId ?? order.producerId;
         order.producer = data.producer ?? order.producer;
         order.driver = data.driver ?? order.driver;
         order.vehicle = data.vehicle ?? order.vehicle;
-        order.status = 'InPreparation'; // Actualizamos el estado acorde a C#
+        order.status = 'InPreparation';
         order.statusClass = 'status-assigned';
-
-        console.log('[assignOrder] Local state updated:', order);
-
-        // 2. Sincronización real con C# a través del PATCH
-        const payload = { producerId: Number(data.producerId) };
-
-        orderManagementApi.assignProducer(orderId, payload).catch(err => {
-            console.warn('[assignOrder] API sync failed:', err.message);
-        });
-
         return true;
     }
 

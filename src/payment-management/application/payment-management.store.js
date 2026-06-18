@@ -9,12 +9,17 @@ export const usePaymentManagementStore = defineStore('payment-management', () =>
     const invoices = ref([]);
     const transactions = ref([]);
     const isLoading = ref(false);
+    // Agrega estos computed para los tabs
+    const receivables = computed(() => invoices.value.filter(i => i.invoiceType === 'RECEIVABLE'));
+    const payables = computed(() => invoices.value.filter(i => i.invoiceType === 'PAYABLE'));
 
     async function fetchInvoices() {
         isLoading.value = true;
         try {
             const response = await api.getInvoices();
             invoices.value = response.data.map(i => PaymentAssembler.toInvoiceEntity(i));
+        } catch (error) {
+            console.error('Error fetching invoices:', error);
         } finally {
             isLoading.value = false;
         }
@@ -46,11 +51,15 @@ export const usePaymentManagementStore = defineStore('payment-management', () =>
             .filter(i => i.status === 'PAID')
             .reduce((sum, i) => sum + i.totalAmount, 0);
 
+
+
         return { totalOutstanding, recentPayments };
     });
 
     return {
         invoices,
+        receivables,   // ← nuevo
+        payables,      // ← nuevo
         transactions,
         isLoading,
         billingStats,
