@@ -144,7 +144,6 @@ const selectedCategory = ref('Todos');
 const filteredProducts = computed(() => selectedCategory.value === 'Todos' ? products.value : products.value.filter(p => p.category === selectedCategory.value));
 const cartItemNames = computed(() => cartStore.items.slice(0, 3).map(i => i.product.name).join(', ') + (cartStore.items.length > 3 ? ` y ${cartStore.items.length - 3} más` : ''));
 
-// --- CORREGIDO: Eliminados los tipados de TypeScript de los parámetros ---
 function getCartQuantity(productId) { return cartStore.items.find(i => i.product.id === productId)?.quantity || 0; }
 function addProduct(product) { cartStore.addToCart(product, 1); }
 function increaseQty(product) { cartStore.addToCart(product, 1); }
@@ -155,7 +154,6 @@ function decreaseQty(product) {
 }
 function continueToOrder() { showOrderModal.value = true; }
 
-// --- ACTUALIZADO: Conexión Real con Render a través de Async/Await ---
 async function confirmOrder() {
   if (!deliveryAddress.value || !deliveryDate.value) return;
 

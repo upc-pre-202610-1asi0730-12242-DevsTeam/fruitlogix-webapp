@@ -268,18 +268,15 @@ async function processPayment() {
   paymentError.value = '';
 
   try {
-    // Simular delay de procesamiento (realista)
     await new Promise(r => setTimeout(r, 2000));
 
-    // Determinar método y marca de tarjeta
     const method = payMethod.value === 'card' ? 'CREDIT_CARD' : 'YAPE';
     const cardBrand = payMethod.value === 'card' ? getCardBrand() || null : null;
     const cardEnding = payMethod.value === 'card'
         ? cardNumber.value.replace(/\s/g, '').slice(-4)
         : null;
 
-    // POST al backend → crear PaymentTransaction
-    // invoiceId: usamos el orderId como referencia (ajusta si tienes el invoiceId real)
+
     await paymentStore.processPayment({
       invoiceId: realInvoiceId.value, // ← antes era hardcodeado a 1
       amount: order.value.total,
