@@ -107,7 +107,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { useOrderManagementStore } from '../../order-management/application/order-management.store.js';
+import { useOrderManagementStore } from '../../../order-management/application/order-management.store.js';
 
 const store = useOrderManagementStore();
 

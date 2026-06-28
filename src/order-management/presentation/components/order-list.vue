@@ -102,11 +102,14 @@
         <pv-column header="Acciones" headerStyle="text-align: right">
           <template #body="{ data }">
             <div class="row-actions-right">
-              <button class="icon-btn-minimal" @click="goToOrderDetail({ data })" title="Ver detalle">
+              <button class="icon-btn-minimal" @click.stop="goToOrderDetail({ data })" title="Ver detalle">
                 <i class="pi pi-eye"/>
               </button>
-              <button class="icon-btn-minimal" :class="{ disabled: isStatusRestricted(data.status) }" @click="!isStatusRestricted(data.status) && showOrderEdit(data)" title="Editar">
+              <button class="icon-btn-minimal" :class="{ disabled: isStatusRestricted(data.status) }" @click.stop="!isStatusRestricted(data.status) && showOrderEdit(data)" title="Editar">
                 <i class="pi pi-pencil"/>
+              </button>
+              <button class="icon-btn-minimal delete-btn" :class="{ disabled: isStatusRestricted(data.status) }" @click.stop="!isStatusRestricted(data.status) && showDeleteConfirm(data)" title="Eliminar">
+                <i class="pi pi-trash"/>
               </button>
             </div>
           </template>
@@ -391,9 +394,13 @@ async function handleAssignCancelOrder(order) {
 
 async function confirmDelete() {
   if (!orderToDelete.value) return;
-  await orderStore.deleteOrder(orderToDelete.value.id);
-  isDeleteConfirmVisible.value = false;
-  orderToDelete.value = null;
+  try {
+    await orderStore.hardDeleteOrder(orderToDelete.value.id);
+    isDeleteConfirmVisible.value = false;
+    orderToDelete.value = null;
+  } catch (error) {
+    console.error("Error al intentar eliminar el pedido:", error);
+  }
 }
 
 async function handleOrderSave(orderData) {
