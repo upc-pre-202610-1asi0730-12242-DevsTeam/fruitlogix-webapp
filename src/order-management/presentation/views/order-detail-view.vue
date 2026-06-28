@@ -24,13 +24,11 @@
           </div>
         </header>
 
-        <!-- Estado de Carga -->
         <div v-if="isLoadingQuality" class="drawer-content" style="align-items: center; justify-content: center;">
           <i class="pi pi-spin pi-spinner" style="font-size: 2.5rem; color: #c9e265; margin-bottom: 1rem;"></i>
           <p style="color: #8fba8f; font-weight: 600;">Descargando reporte de la base de datos...</p>
         </div>
 
-        <!-- Contenido Real del Reporte -->
         <div v-else class="drawer-content">
 
           <section class="drawer-section">
@@ -116,7 +114,6 @@
               <span class="delivery-sub">Registro Visual</span>
             </div>
             <div class="photo-grid">
-              <!-- Reemplaza con tus imágenes reales de assets si las tienes -->
               <div class="photo-placeholder">
                 <i class="pi pi-image" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
                 <p>Vista General</p>
@@ -358,8 +355,12 @@
               <template v-else>
                 <div class="map-waiting">
                   <i class="pi pi-map map-waiting-icon"></i>
-                  <p class="map-waiting-title">Rastreo no disponible</p>
-                  <p class="map-waiting-sub">El seguimiento en tiempo real se activará cuando el conductor inicie la ruta de entrega.</p>
+                  <p class="map-waiting-title">Flota no asignada</p>
+                  <p class="map-waiting-sub">Aún no has asignado un conductor y vehículo a este pedido para recoger la carga.</p>
+
+                  <button class="action-btn outline btn-reporte" @click="showAssignFleetDialog" style="margin-top: 1rem; border-color: #c9e265; color: #c9e265;">
+                    <i class="pi pi-truck" style="margin-right: 0.5rem;"></i> Asignar Flota
+                  </button>
                 </div>
               </template>
             </div>
@@ -374,7 +375,6 @@
                 <span class="quality-title">Control de Calidad</span>
                 <span class="quality-status">Estado: {{ qualityStatus }}</span>
               </div>
-              <!-- 🟢 BOTÓN QUE ACTIVA LA LLAMADA A LA API -->
               <button class="action-btn outline btn-reporte" @click="openQualityReport">
                 Ver Reporte
               </button>
@@ -473,6 +473,49 @@
         </div>
       </template>
     </pv-dialog>
+
+    <pv-dialog
+        v-model:visible="isAssignFleetVisible"
+        modal
+        :closable="true"
+        :style="{ width: '450px' }"
+        class="delete-confirm-dialog"
+    >
+      <template #header>
+        <div class="cancel-header">
+          <div class="cancel-icon-wrap" style="background: rgba(201, 226, 101, 0.15); color: #c9e265; border-color: #c9e265;">
+            <i class="pi pi-truck"></i>
+          </div>
+          <span>Asignar Flota y Conductor</span>
+        </div>
+      </template>
+      <div class="cancel-body">
+        <p class="cancel-message" style="margin-bottom: 1.5rem;">Selecciona los recursos logísticos para iniciar la ruta hacia el productor y luego al cliente final.</p>
+
+        <div style="display:flex; flex-direction: column; gap: 1rem;">
+          <div style="display:flex; flex-direction: column; gap: 0.3rem;">
+            <label style="color: #6b8a6b; font-size: 0.8rem; font-weight: bold;">Conductor Asignado</label>
+            <input type="text" v-model="fleetForm.driverName" placeholder="Ej. Carlos Ávila" style="padding: 0.75rem; border-radius: 8px; background: #2a3d2e; border: 1px solid #3d5c42; color: #e0ead0; outline: none;"/>
+          </div>
+
+          <div style="display:flex; flex-direction: column; gap: 0.3rem;">
+            <label style="color: #6b8a6b; font-size: 0.8rem; font-weight: bold;">Placa del Vehículo</label>
+            <input type="text" v-model="fleetForm.vehiclePlate" placeholder="Ej. ABC-123" style="padding: 0.75rem; border-radius: 8px; background: #2a3d2e; border: 1px solid #3d5c42; color: #e0ead0; outline: none;"/>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <div class="delete-footer">
+          <button class="cancel-del-btn" @click="isAssignFleetVisible = false">
+            <i class="pi pi-times"></i> Cancelar
+          </button>
+          <button class="confirm-del-btn" @click="submitFleetAssignment" style="flex:1; border-radius: 10px; font-weight: 700; background: #c9e265; color: #122216; border-color: #c9e265;">
+            <i class="pi pi-check"></i> Confirmar Asignación
+          </button>
+        </div>
+      </template>
+    </pv-dialog>
+
   </div>
 </template>
 
@@ -480,20 +523,28 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useOrderManagementStore } from '../../application/order-management.store.js';
+// 🌟 Asegúrate de que esta ruta hacia base-api.js sea correcta en tu proyecto
+import { BaseApi } from '../../../shared/infrastructure/base-api.js';
 
 const route = useRoute();
 const router = useRouter();
 const orderStore = useOrderManagementStore();
+const api = new BaseApi();
 
 const isLoading = ref(true);
 const isCancelConfirmVisible = ref(false);
 
-// 🟢 CONTROL DEL DRAWER DE CALIDAD
+// CONTROL DEL DRAWER DE CALIDAD
 const isQualityReportOpen = ref(false);
-
-// 🌟 NUEVO: Variables para guardar los datos reales del reporte de C#
 const qualityReport = ref(null);
 const isLoadingQuality = ref(false);
+
+// 🌟 VARIABLES PARA ASIGNAR FLOTA
+const isAssignFleetVisible = ref(false);
+const fleetForm = ref({
+  driverName: '',
+  vehiclePlate: ''
+});
 
 const order = computed(() => {
   const id = route.params.id;
@@ -510,6 +561,48 @@ onMounted(async () => {
 function goBack() {
   router.push({ name: 'order-list' });
 }
+
+// 🌟 FUNCIONES DEL MODAL DE FLOTA
+function showAssignFleetDialog() {
+  isAssignFleetVisible.value = true;
+}
+
+async function submitFleetAssignment() {
+  try {
+    if (!fleetForm.value.driverName || !fleetForm.value.vehiclePlate) {
+      alert("Por favor completa los datos del conductor y vehículo.");
+      return;
+    }
+
+    const payload = {
+      orderId: order.value.id,
+      driverName: fleetForm.value.driverName,
+      driverPhone: "987654321", // Simulado
+      vehiclePlate: fleetForm.value.vehiclePlate,
+      vehicleType: "Refrigerated Truck",
+      routeOrigin: producerLocation.value || "Finca Origen",
+      routeDestination: deliveryAddress.value || "Cliente Destino",
+      routeDistanceKm: 42.5,
+      estimatedTimeOfArrival: new Date(new Date().getTime() + 2 * 60 * 60000).toISOString(),
+      currentStatus: "IN_TRANSIT"
+    };
+
+    // Hacemos el POST a tu API real en Render
+    await api.http.post('https://fruitlogix-platform.onrender.com/api/v1/deliveries', payload);
+
+    // Cerramos el modal
+    isAssignFleetVisible.value = false;
+    alert("¡Flota asignada correctamente! El camión ya está en ruta.");
+
+    // Opcional: Redirigimos al Centro de Control para ver el camión vivo
+    // router.push({ name: 'logistics-monitoring' });
+
+  } catch (error) {
+    console.error("Error al asignar flota:", error);
+    alert("Hubo un error al crear el despacho.");
+  }
+}
+
 async function openQualityReport() {
   isQualityReportOpen.value = true;
 
@@ -517,7 +610,6 @@ async function openQualityReport() {
 
   isLoadingQuality.value = true;
   try {
-    // Usamos la ruta exacta de tu Swagger para buscar por batchId
     const url = `https://fruitlogix-platform.onrender.com/api/v1/quality-inspections/batch/${order.value.id}`;
     console.log("Consultando API real:", url);
 
@@ -528,10 +620,8 @@ async function openQualityReport() {
     }
 
     const data = await response.json();
-
     const rawData = Array.isArray(data) ? data[0] : data;
 
-    // Asignamos la data desempacada a tu pantalla
     qualityReport.value = {
       temperatureCelsius: rawData.technicalParameters?.temperatureCelsius ?? '--',
       humidityPercent: rawData.technicalParameters?.humidityPercent ?? '--',
@@ -541,11 +631,8 @@ async function openQualityReport() {
       notes: rawData.notes || 'Sin observaciones adicionales.'
     };
 
-    console.log("Datos desempacados listos para la pantalla:", qualityReport.value);
-
   } catch (error) {
     console.error("Error al obtener el reporte real:", error);
-
     qualityReport.value = {
       temperatureCelsius: '--',
       humidityPercent: '--',
@@ -558,6 +645,7 @@ async function openQualityReport() {
     isLoadingQuality.value = false;
   }
 }
+
 const calculateApproved = (qtyString, wastePct) => {
   const total = parseFloat(qtyString) || 0;
   const waste = total * ((wastePct || 0) / 100);

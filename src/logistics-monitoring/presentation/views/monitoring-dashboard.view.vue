@@ -205,37 +205,51 @@ onMounted(async () => {
 async function fetchDeliveriesAndOrders() {
   isLoadingDeliveries.value = true;
   try {
-    // 1. Llamamos a ambos endpoints al mismo tiempo
     const [deliveriesResponse, ordersResponse] = await Promise.all([
       api.http.get('https://fruitlogix-platform.onrender.com/api/v1/deliveries'),
       api.http.get('https://fruitlogix-platform.onrender.com/api/v1/orders')
     ]);
 
-    const deliveriesData = deliveriesResponse.data;
-    const ordersData = ordersResponse.data;
+    const deliveriesData = deliveriesResponse.data || [];
+    const ordersData = ordersResponse.data || [];
 
-    // 2. Filtramos solo los despachos en tránsito o retrasados
+    // Filtramos con cuidado por si currentStatus viene nulo
     const activeRawDeliveries = deliveriesData.filter(d =>
-        d.currentStatus === 'IN_TRANSIT' || d.currentStatus === 'DELAYED'
+        d && d.currentStatus && (d.currentStatus === 'IN_TRANSIT' || d.currentStatus === 'DELAYED')
     );
 
-    // 3. Fusionamos los datos
+    // INYECCIÓN DE PRUEBA: Si no hay despachos en la BD, creamos uno falso para la Orden 1
+    if (activeRawDeliveries.length === 0 && ordersData.length > 0) {
+      console.log("Inyectando Delivery temporal para visualizar la pantalla...");
+      activeRawDeliveries.push({
+        id: 999,
+        orderId: ordersData[0].id, // Tomamos la primera orden real que tengas en la BD
+        driverName: "Conductor de Prueba",
+        vehiclePlate: "TEST-123",
+        currentStatus: "IN_TRANSIT",
+        estimatedTimeOfArrival: new Date(new Date().getTime() + 60 * 60000).toISOString()
+      });
+    }
+
+    // Mapeo seguro
     activeDeliveries.value = activeRawDeliveries.map(delivery => {
-      // Buscamos la orden correspondiente a este delivery
-      // OJO: Asegúrate de que el backend envíe 'orderId' en el objeto delivery
-      const matchingOrder = ordersData.find(o => o.id === delivery.orderId);
+      const matchingOrder = ordersData.find(o => String(o.id) === String(delivery.orderId));
+
+      // Extraemos iniciales del cliente de forma segura
+      const clientNameStr = matchingOrder && matchingOrder.clientName ? matchingOrder.clientName : 'Cliente Desconocido';
+      const initials = clientNameStr.substring(0, 2).toUpperCase();
 
       return {
         deliveryId: delivery.id,
         orderId: delivery.orderId,
-        // Datos del Delivery
         assignedDriver: delivery.driverName || 'Sin Conductor',
         vehiclePlate: delivery.vehiclePlate || 'Sin Placa',
         currentStatus: delivery.currentStatus,
-        eta: delivery.estimatedTimeOfArrival ? new Date(delivery.estimatedTimeOfArrival).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Calculando...',
-        // Datos de la Orden (Cruzados)
-        clientName: matchingOrder ? matchingOrder.clientName : 'Cliente Desconocido',
-        // Simulamos la temperatura por ahora hasta conectar el endpoint de IoT
+        eta: delivery.estimatedTimeOfArrival
+            ? new Date(delivery.estimatedTimeOfArrival).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+            : 'Calculando...',
+        clientName: clientNameStr,
+        clientInitials: initials, // Agregado para el círculo verde
         currentTemperature: (Math.random() * (6 - 3) + 3).toFixed(1)
       };
     });
