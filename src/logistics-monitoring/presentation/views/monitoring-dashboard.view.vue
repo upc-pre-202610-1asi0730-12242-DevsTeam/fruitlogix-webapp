@@ -89,42 +89,40 @@
         <div v-if="activeTab === 'incidencias'" class="tab-content">
           <div class="incident-list">
 
-            <div class="incident-card" :class="inc1Resolved ? 'resolved' : 'critical'">
-              <div class="incident-header">
-                <div class="incident-type-wrap">
-                  <div class="type-icon"><i :class="inc1Resolved ? 'pi pi-check' : 'pi pi-thermometer'" /></div>
-                  <div class="type-info">
-                    <span class="type-tag">{{ inc1Resolved ? 'INCIDENCIA RESUELTA' : 'DESVIACIÓN TÉRMICA' }}</span>
-                    <h3 class="incident-id">Pedido #ORD-2024-003: Carga de Mango Kent</h3>
-                  </div>
-                </div>
-                <span class="incident-time">{{ inc1Resolved ? 'Cerrado' : 'Hace 5 min' }}</span>
-              </div>
-              <p class="incident-desc" v-if="!inc1Resolved">
-                Sensor crítico en contenedor detectó un pico térmico de <span class="highlight">5.2°C</span> (Umbral máx: 4.5°C). Origen de la lectura: Unidad de refrigeración principal.
-              </p>
-              <div class="incident-actions" v-if="!inc1Resolved">
-                <button class="resolve-btn" @click="inc1Resolved = true"><i class="pi pi-check-circle" /> Marcar como Resuelto</button>
-                <button class="map-btn"><i class="pi pi-comments" /> Hablar con Conductor</button>
-              </div>
+            <div v-if="isLoadingIncidents" class="loading-state" style="text-align:center; padding: 2rem; color: #c9e265;">
+              <i class="pi pi-spin pi-spinner" style="font-size: 2rem;"></i>
+              <p>Cargando reporte de incidencias...</p>
             </div>
 
-            <div class="incident-card" :class="inc2Resolved ? 'resolved' : 'warning'">
+            <div v-else-if="activeIncidents.length === 0" style="text-align:center; color: #8fba8f; padding: 2rem;">
+              <p>¡Todo en orden! No hay incidencias activas en la flota.</p>
+            </div>
+
+            <div
+                v-else
+                v-for="incident in activeIncidents"
+                :key="incident.id"
+                class="incident-card"
+                :class="incident.resolved ? 'resolved' : (incident.type === 'RETRASO DE RUTA' ? 'warning' : 'critical')"
+            >
               <div class="incident-header">
                 <div class="incident-type-wrap">
-                  <div class="type-icon"><i :class="inc2Resolved ? 'pi pi-check' : 'pi pi-truck'" /></div>
+                  <div class="type-icon">
+                    <i :class="incident.resolved ? 'pi pi-check' : (incident.type === 'RETRASO DE RUTA' ? 'pi pi-truck' : 'pi pi-thermometer')" />
+                  </div>
                   <div class="type-info">
-                    <span class="type-tag">{{ inc2Resolved ? 'INCIDENCIA RESUELTA' : 'RETRASO DE RUTA' }}</span>
-                    <h3 class="incident-id">Envío #ORD-2024-005: Espárragos</h3>
+                    <span class="type-tag">{{ incident.resolved ? 'INCIDENCIA RESUELTA' : incident.type }}</span>
+                    <h3 class="incident-id">Pedido #ORD-{{ incident.orderId }}</h3>
                   </div>
                 </div>
-                <span class="incident-time">{{ inc2Resolved ? 'Cerrado' : 'Hace 18 min' }}</span>
+                <span class="incident-time">{{ incident.resolved ? 'Cerrado' : 'Detectado recientemente' }}</span>
               </div>
-              <p class="incident-desc" v-if="!inc2Resolved">
-                Retraso reportado automáticamente por sistema GPS debido a congestión en la Panamericana Sur. ETA desplazado <span class="highlight">+25 minutos</span>.
+              <p class="incident-desc" v-if="!incident.resolved">
+                {{ incident.description }}
               </p>
-              <div class="incident-actions" v-if="!inc2Resolved">
-                <button class="resolve-btn" @click="inc2Resolved = true"><i class="pi pi-check-circle" /> Marcar como Resuelto</button>
+              <div class="incident-actions" v-if="!incident.resolved">
+                <button class="resolve-btn" @click="markAsResolved(incident.id)"><i class="pi pi-check-circle" /> Marcar como Resuelto</button>
+                <button class="map-btn" @click="handleChatWithDriver(incident.orderId)"><i class="pi pi-comments" /> Hablar con Conductor</button>
               </div>
             </div>
 
@@ -194,11 +192,61 @@ const inc2Resolved = ref(false);
 
 const activeDeliveries = ref([]);
 const isLoadingDeliveries = ref(true);
+const activeIncidents = ref([]);
+const isLoadingIncidents = ref(true);
 
 const api = new BaseApi();
 
+async function fetchIncidents() {
+  isLoadingIncidents.value = true;
+  try {
+    const response = await api.http.get('https://fruitlogix-platform.onrender.com/api/v1/incidents');
+
+    activeIncidents.value = response.data.map(inc => ({
+      id: inc.id,
+      orderId: inc.batchId || 'Desconocido', // 🟢 CAMBIO CLAVE: C# usa batchId
+      type: (inc.description && inc.description.toLowerCase().includes('retraso')) ? 'RETRASO DE RUTA' : 'DESVIACIÓN TÉRMICA',
+      description: inc.description || 'Alerta operativa detectada en el sistema.',
+      resolved: inc.status === 'Resolved' || inc.status === 'Resuelto'
+    })).filter(inc => !inc.resolved);
+
+  } catch (error) {
+    console.error("Error al cargar incidencias:", error);
+  } finally {
+    isLoadingIncidents.value = false;
+  }
+}
+
+async function markAsResolved(incidentId) {
+  // Cambio visual inmediato (Optimistic UI) para que la app se sienta súper rápida
+  const incident = activeIncidents.value.find(i => i.id === incidentId);
+  if (incident) incident.resolved = true;
+
+  try {
+    // 🟢 ESTO AHORA ES REAL: Le avisa a C# que la incidencia se resolvió
+    await api.http.patch(`https://fruitlogix-platform.onrender.com/api/v1/incidents/${incidentId}/status`, {
+      status: "Resolved"
+    });
+  } catch (error) {
+    console.error("Error al resolver incidencia en el servidor", error);
+    // Si falla el backend, volvemos a mostrar el error en pantalla
+    if (incident) incident.resolved = false;
+    alert("Hubo un problema al resolver la incidencia en el servidor.");
+  }
+}
+
+async function handleChatWithDriver(orderId) {
+  try {
+    // Redirige al módulo de chat pasando el ID del pedido
+    router.push({ name: 'distributor-chat', query: { orderId: orderId } });
+  } catch(error) {
+    console.error("Error al iniciar el chat", error);
+  }
+}
+
 onMounted(async () => {
   await fetchDeliveriesAndOrders();
+  await fetchIncidents();
 });
 
 // 🌟 NUEVO: Función que cruza Datos de Deliveries y Orders
