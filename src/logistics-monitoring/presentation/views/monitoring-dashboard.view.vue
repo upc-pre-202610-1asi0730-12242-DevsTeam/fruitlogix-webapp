@@ -24,9 +24,9 @@
     </div>
 
     <div class="dashboard-grid">
-      
+
       <section class="main-panel">
-        
+
         <div class="tabs-header">
           <button class="tab-btn" :class="{ active: activeTab === 'despachos' }" @click="activeTab = 'despachos'">
             <i class="pi pi-truck" /> Despachos Activos (3)
@@ -38,80 +38,57 @@
 
         <div v-if="activeTab === 'despachos'" class="tab-content">
           <div class="compact-list">
-            <div class="list-row warning-row">
-              <div class="client-badge bg-warn">DL</div>
-              <div class="row-info">
-                <span class="row-client">Distribuidora Lima Sur</span>
-                <span class="row-id">#ORD-2024-003</span>
-                <span class="row-desc">Conductor: Carlos Ávila • Vehículo: ABC-123</span>
-                <div class="mini-timeline">
-                  <span class="dot done"></span><span class="line done"></span>
-                  <span class="dot done"></span><span class="line pending"></span>
-                  <span class="dot pending"></span>
-                  <span class="timeline-text">2 de 3 paradas completadas</span>
-                </div>
-              </div>
-              <div class="row-telemetry">
-                <span class="tele-item warn"><i class="pi pi-thermometer" /> 5.2°C</span>
-                <span class="tele-item"><i class="pi pi-clock" /> ETA: 42 min</span>
-              </div>
-              <div class="row-actions">
-                  <button class="action-btn-circle" title="Contactar Conductor" @click="goToChat('ORD-2024-003')"><i class="pi pi-comments" /></button>
-                <button class="action-btn" @click="viewDetails('ORD-2024-003')">Detalle</button>
-              </div>
+
+            <div v-if="isLoadingDeliveries" class="loading-state" style="text-align:center; padding: 2rem; color: #c9e265;">
+              <i class="pi pi-spin pi-spinner" style="font-size: 2rem;"></i>
+              <p>Cargando flota en vivo...</p>
             </div>
 
-            <div class="list-row">
-              <div class="client-badge bg-ok">AE</div>
+            <div v-else-if="activeDeliveries.length === 0" style="text-align:center; color: #8fba8f; padding: 2rem;">
+              <p>No hay despachos en tránsito en este momento.</p>
+            </div>
+
+            <!-- ✅ BLOQUE ACTUALIZADO -->
+            <div
+                v-else
+                v-for="delivery in activeDeliveries"
+                :key="delivery.deliveryId"
+                class="list-row"
+                :class="{'warning-row': delivery.currentStatus === 'DELAYED' || parseFloat(delivery.currentTemperature) > 4.5}"
+            >
+              <div class="client-badge bg-ok">{{ delivery.clientName.substring(0,2).toUpperCase() }}</div>
               <div class="row-info">
-                <span class="row-client">AgroExport S.A.</span>
-                <span class="row-id">#ORD-2024-004</span>
-                <span class="row-desc">Conductor: Miguel Torres • Vehículo: XYZ-987</span>
+                <span class="row-client">{{ delivery.clientName }}</span>
+                <span class="row-id">#ORD-{{ delivery.orderId }}</span>
+                <span class="row-desc">Conductor: {{ delivery.assignedDriver }} • Vehículo: {{ delivery.vehiclePlate }}</span>
                 <div class="mini-timeline">
+                  <span class="dot done"></span><span class="line done"></span>
                   <span class="dot done"></span><span class="line pending"></span>
-                  <span class="dot pending"></span><span class="line pending"></span>
                   <span class="dot pending"></span>
-                  <span class="timeline-text">En tránsito al destino final</span>
+                  <span class="timeline-text">
+                    {{ delivery.currentStatus === 'DELAYED' ? 'Retraso reportado en ruta' : 'En tránsito al destino final' }}
+                  </span>
                 </div>
               </div>
               <div class="row-telemetry">
-                <span class="tele-item ok"><i class="pi pi-thermometer" /> 4.0°C</span>
-                <span class="tele-item"><i class="pi pi-clock" /> ETA: 1h 15m</span>
+                <span class="tele-item" :class="parseFloat(delivery.currentTemperature) > 4.5 ? 'warn' : 'ok'">
+                  <i class="pi pi-thermometer" /> {{ delivery.currentTemperature }}°C
+                </span>
+                <span class="tele-item"><i class="pi pi-clock" /> ETA: {{ delivery.eta }}</span>
               </div>
               <div class="row-actions">
-                  <button class="action-btn-circle" title="Contactar Conductor" @click="goToChat('ORD-2024-004')"><i class="pi pi-comments" /></button>
-                <button class="action-btn" @click="viewDetails('ORD-2024-004')">Detalle</button>
+                <button class="action-btn-circle" title="Contactar Conductor" @click="goToChat(delivery.orderId)"><i class="pi pi-comments" /></button>
+                <button class="action-btn" @click="viewDetails(delivery.deliveryId)">Detalle</button>
               </div>
             </div>
-            
-            <div class="list-row">
-              <div class="client-badge bg-ok">EC</div>
-              <div class="row-info">
-                <span class="row-client">EcoFrutas</span>
-                <span class="row-id">#ORD-2024-005</span>
-                <span class="row-desc">Conductor: Luis Silva • Vehículo: DEF-456</span>
-                <div class="mini-timeline">
-                  <span class="dot done"></span><span class="line done"></span>
-                  <span class="dot done"></span><span class="line done"></span>
-                  <span class="dot pending"></span>
-                  <span class="timeline-text">Aproximándose al muelle de descarga</span>
-                </div>
-              </div>
-              <div class="row-telemetry">
-                <span class="tele-item ok"><i class="pi pi-thermometer" /> 3.8°C</span>
-                <span class="tele-item"><i class="pi pi-clock" /> ETA: 10 min</span>
-              </div>
-              <div class="row-actions">
-                  <button class="action-btn-circle" title="Contactar Conductor" @click="goToChat('ORD-2024-005')"><i class="pi pi-comments" /></button>
-                <button class="action-btn" @click="viewDetails('ORD-2024-005')">Detalle</button>
-              </div>
-            </div>
+            <!-- FIN BLOQUE ACTUALIZADO -->
+
           </div>
         </div>
 
         <div v-if="activeTab === 'incidencias'" class="tab-content">
           <div class="incident-list">
-            
+
             <div class="incident-card" :class="inc1Resolved ? 'resolved' : 'critical'">
               <div class="incident-header">
                 <div class="incident-type-wrap">
@@ -150,25 +127,25 @@
                 <button class="resolve-btn" @click="inc2Resolved = true"><i class="pi pi-check-circle" /> Marcar como Resuelto</button>
               </div>
             </div>
-            
+
           </div>
         </div>
 
       </section>
 
       <aside class="monitoring-panel">
-        
+
         <div class="map-container">
           <div class="map-overlay-header">
             <i class="pi pi-map-marker"/>
             <span>MAPA EN VIVO</span>
           </div>
-          
+
           <div class="map-background-wrapper">
-            <live-tracking-map 
-              origin-label="SANTA ANITA" 
-              destination-label="PUERTO CALLAO" 
-              :total-km="42.5" 
+            <live-tracking-map
+                origin-label="SANTA ANITA"
+                destination-label="PUERTO CALLAO"
+                :total-km="42.5"
             />
           </div>
 
@@ -205,26 +182,73 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-// 🟢 Importamos el componente del mapa inteligente
+import { BaseApi } from '../../../shared/infrastructure/base-api.js';
 import LiveTrackingMap from '../../../shared/presentation/components/live-tracking-map.vue';
 
 const router = useRouter();
-
-// Control del sistema de Tabs
-const activeTab = ref('despachos'); 
-
-// Control reactivo de resolución de incidencias
+const activeTab = ref('despachos');
 const inc1Resolved = ref(false);
 const inc2Resolved = ref(false);
 
-// 🟢 La función que conecta los botones con el chat
+const activeDeliveries = ref([]);
+const isLoadingDeliveries = ref(true);
+
+const api = new BaseApi();
+
+onMounted(async () => {
+  await fetchDeliveriesAndOrders();
+});
+
+// 🌟 NUEVO: Función que cruza Datos de Deliveries y Orders
+async function fetchDeliveriesAndOrders() {
+  isLoadingDeliveries.value = true;
+  try {
+    // 1. Llamamos a ambos endpoints al mismo tiempo
+    const [deliveriesResponse, ordersResponse] = await Promise.all([
+      api.http.get('https://fruitlogix-platform.onrender.com/api/v1/deliveries'),
+      api.http.get('https://fruitlogix-platform.onrender.com/api/v1/orders')
+    ]);
+
+    const deliveriesData = deliveriesResponse.data;
+    const ordersData = ordersResponse.data;
+
+    // 2. Filtramos solo los despachos en tránsito o retrasados
+    const activeRawDeliveries = deliveriesData.filter(d =>
+        d.currentStatus === 'IN_TRANSIT' || d.currentStatus === 'DELAYED'
+    );
+
+    // 3. Fusionamos los datos
+    activeDeliveries.value = activeRawDeliveries.map(delivery => {
+      // Buscamos la orden correspondiente a este delivery
+      // OJO: Asegúrate de que el backend envíe 'orderId' en el objeto delivery
+      const matchingOrder = ordersData.find(o => o.id === delivery.orderId);
+
+      return {
+        deliveryId: delivery.id,
+        orderId: delivery.orderId,
+        // Datos del Delivery
+        assignedDriver: delivery.driverName || 'Sin Conductor',
+        vehiclePlate: delivery.vehiclePlate || 'Sin Placa',
+        currentStatus: delivery.currentStatus,
+        eta: delivery.estimatedTimeOfArrival ? new Date(delivery.estimatedTimeOfArrival).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Calculando...',
+        // Datos de la Orden (Cruzados)
+        clientName: matchingOrder ? matchingOrder.clientName : 'Cliente Desconocido',
+        // Simulamos la temperatura por ahora hasta conectar el endpoint de IoT
+        currentTemperature: (Math.random() * (6 - 3) + 3).toFixed(1)
+      };
+    });
+
+  } catch (error) {
+    console.error("Error al cargar datos cruzados:", error);
+  } finally {
+    isLoadingDeliveries.value = false;
+  }
+}
+
 const goToChat = (orderId) => {
-  router.push({ 
-    name: 'distributor-chat', 
-    query: { orderId: orderId } 
-  });
+  router.push({ name: 'distributor-chat', query: { orderId: orderId } });
 };
 
 const activeIncidentsCount = computed(() => {
@@ -234,13 +258,8 @@ const activeIncidentsCount = computed(() => {
   return count;
 });
 
-// Enrutador con el ID global idéntico
-function viewDetails(orderId) {
-  // Redirige a la vista delivery-details.view.vue usando su 'name'
-  router.push({ 
-    name: 'delivery-details', // 🟢 Asegúrate de que este nombre coincida con tu archivo routes.js
-    params: { id: orderId } 
-  });
+function viewDetails(deliveryId) {
+  router.push({ name: 'delivery-details', params: { id: deliveryId } });
 }
 </script>
 

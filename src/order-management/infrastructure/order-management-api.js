@@ -57,9 +57,8 @@ export class OrderManagementApi extends BaseApi {
 
     /** @param {number|string} id */
     deleteOrder(id) {
-        return this.http.delete(`/orders/${id}`);
+        return this.http.delete(`${ordersEndpointPath}/${id}`);
     }
-
     /** @returns {Promise<import('axios').AxiosResponse>} */
     getFruits()             { return this.#fruitsEndpoint.getAll(); }
 
