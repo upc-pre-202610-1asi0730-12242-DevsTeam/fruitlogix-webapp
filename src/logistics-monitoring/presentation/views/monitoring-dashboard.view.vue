@@ -215,7 +215,12 @@ async function fetchDeliveriesAndOrders() {
 
     // Filtramos con cuidado por si currentStatus viene nulo
     const activeRawDeliveries = deliveriesData.filter(d =>
-        d && d.currentStatus && (d.currentStatus === 'IN_TRANSIT' || d.currentStatus === 'DELAYED')
+            d && d.currentStatus && (
+                d.currentStatus === 'IN_TRANSIT' ||
+                d.currentStatus === 'DELAYED' ||
+                d.currentStatus === 'PendingDispatch' || // <-- AÑADIDO
+                d.currentStatus === 'PENDING_DISPATCH'   // (Por si acaso)
+            )
     );
 
     // INYECCIÓN DE PRUEBA: Si no hay despachos en la BD, creamos uno falso para la Orden 1
