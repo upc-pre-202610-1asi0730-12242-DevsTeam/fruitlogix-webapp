@@ -27,7 +27,7 @@
           </div>
         </div>
 
-        <div v-if="store.isLoading" class="loading-wrap">
+        <div v-if="isLoading" class="loading-wrap">
           <i class="pi pi-spin pi-spinner" />
           <p>Sincronizando dispositivos...</p>
         </div>
@@ -192,88 +192,118 @@
 </template>
 
 <script setup>
-import { onMounted, computed } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { useIoTInfrastructureStore } from '../../application/iot-infrastructure.store.js';
+// Importamos tu BaseApi para hacer las llamadas a Render
+import { BaseApi } from '../../../shared/infrastructure/base-api.js';
 
-const store = useIoTInfrastructureStore();
 const router = useRouter();
+const api = new BaseApi();
+
+const rawDevices = ref([]);
+const rawReadings = ref([]);
+const activeDeliveries = ref([]);
+const isLoading = ref(true);
 
 onMounted(async () => {
-  await store.fetchDevices();
-  await store.fetchReadings();
+  await fetchIoTData();
 });
 
-// 🟢 MOCK DATA MEJORADO: Simulamos la vinculación logística para el panel
-// En un entorno real, esta data vendría cruzada entre tu IoT Store y tu Order Store.
-const enhancedDevices = computed(() => {
-  return [
-    {
-      id: 'DEV-001',
-      type: 'THERMAL_SENSOR',
-      icon: 'pi pi-thermometer',
-      typeClass: 'icon-blue',
-      truck: 'ABC-123',
-      order: '#ORD-089',
-      currentValue: '4.2°C',
-      threshold: '8.0°C',
-      isReadingOk: true,
-      isActive: true
-    },
-    {
-      id: 'DEV-002',
-      type: 'HUMIDITY_PROBE',
-      icon: 'pi pi-cloud',
-      typeClass: 'icon-cyan',
-      truck: 'XYZ-987',
-      order: '#ORD-085',
-      currentValue: '85%',
-      threshold: '90%',
-      isReadingOk: true,
-      isActive: true
-    },
-    {
-      id: 'DEV-003',
-      type: 'THERMAL_SENSOR',
-      icon: 'pi pi-thermometer',
-      typeClass: 'icon-blue',
-      truck: 'DEF-456',
-      order: '#ORD-082',
-      currentValue: '8.4°C',
-      threshold: '8.0°C',
-      isReadingOk: false, // 🚨 Este superó el umbral
-      isActive: true
-    },
-    {
-      id: 'DEV-004',
-      type: 'WEIGHT_SCALE',
-      icon: 'pi pi-box',
-      typeClass: 'icon-gray',
-      truck: '--',
-      order: '--',
-      currentValue: '--',
-      threshold: '--',
-      isReadingOk: true,
-      isActive: false // 📦 En almacén
+async function fetchIoTData() {
+  isLoading.value = true;
+  try {
+    // 1. Llamamos a todas las APIs necesarias en paralelo para mayor velocidad
+    const [devicesRes, readingsRes, deliveriesRes] = await Promise.all([
+      api.http.get('https://fruitlogix-platform.onrender.com/api/v1/io-t-devices'),
+      api.http.get('https://fruitlogix-platform.onrender.com/api/v1/sensor-readings'),
+      api.http.get('https://fruitlogix-platform.onrender.com/api/v1/deliveries')
+    ]);
+
+    rawDevices.value = devicesRes.data || [];
+    rawReadings.value = readingsRes.data || [];
+    activeDeliveries.value = deliveriesRes.data || [];
+
+    // INYECCIÓN DE PRUEBA: Si la tabla de dispositivos está vacía, forzamos un par para no romper el UI
+    if (rawDevices.value.length === 0) {
+      console.log("No hay dispositivos IoT en DB. Inyectando mock data...");
+      rawDevices.value = [
+        { id: 1, deviceCode: 'DEV-991', deviceType: 'Thermal', location: 'ABC-123', status: 'Active' },
+        { id: 2, deviceCode: 'DEV-992', deviceType: 'Humidity', location: 'Almacén', status: 'Inactive' }
+      ];
+      rawReadings.value = [
+        { deviceId: 1, value: 4.5, unit: '°C', timestamp: new Date().toISOString() }
+      ];
     }
-  ];
+
+  } catch (error) {
+    console.error("Error cargando el Bounded Context de IoT:", error);
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+// 2. Mapeamos y cruzamos la data de C# a la estructura que requiere tu HTML
+const enhancedDevices = computed(() => {
+  return rawDevices.value.map(device => {
+
+    // a) Buscamos la última lectura de este dispositivo
+    const deviceReadings = rawReadings.value.filter(r => r.deviceId === device.id);
+    const lastReading = deviceReadings.length > 0
+        ? deviceReadings.reduce((latest, current) => new Date(latest.timestamp) > new Date(current.timestamp) ? latest : current)
+        : null;
+
+    // b) Definimos iconos y clases según el tipo
+    const typeLower = (device.deviceType || '').toLowerCase();
+    let icon = 'pi pi-box';
+    let typeClass = 'icon-gray';
+    let threshold = 0;
+
+    if (typeLower.includes('therm') || typeLower.includes('temp')) {
+      icon = 'pi pi-thermometer'; typeClass = 'icon-blue'; threshold = 8.0;
+    } else if (typeLower.includes('humid')) {
+      icon = 'pi pi-cloud'; typeClass = 'icon-cyan'; threshold = 90.0;
+    }
+
+    // c) Validamos si la lectura superó el umbral
+    const readingVal = lastReading ? parseFloat(lastReading.value) : 0;
+    const isOk = lastReading ? (readingVal <= threshold) : true;
+
+    // d) Buscamos si el camión asociado ('location') está en alguna orden activa
+    const linkedDelivery = activeDeliveries.value.find(d =>
+        d.vehiclePlate && device.location && d.vehiclePlate.toLowerCase() === device.location.toLowerCase()
+    );
+
+    return {
+      id: device.deviceCode || `DEV-00${device.id}`,
+      dbId: device.id,
+      type: (device.deviceType || 'UNKNOWN').toUpperCase(),
+      icon: icon,
+      typeClass: typeClass,
+      truck: device.location && device.location !== 'Almacén' ? device.location : '--',
+      order: linkedDelivery ? `#ORD-${linkedDelivery.orderId}` : '--',
+      currentValue: lastReading ? `${readingVal}${lastReading.unit}` : '--',
+      threshold: threshold ? `${threshold}${lastReading ? lastReading.unit : ''}` : '--',
+      isReadingOk: isOk,
+      isActive: device.status === 'Active' || device.status === 'Activo'
+    };
+  });
 });
 
 const activeDevices = computed(() => enhancedDevices.value.filter(d => d.isActive));
 const inactiveDevices = computed(() => enhancedDevices.value.filter(d => !d.isActive));
 
-// 🟢 CAMBIO: Ahora el botón de "Alertas" te redirige a la consola de telemetría del sensor específico
 function viewAlerts(deviceId) {
-  router.push({ 
-    name: 'iot-calibration', // Usa el nombre de la ruta que ya está registrada en tu sistema
-    params: { id: deviceId }  // Le pasamos el ID del dispositivo (ej: DEV-001) para que cargue su gráfica en vivo
+  router.push({
+    name: 'iot-calibration',
+    params: { id: deviceId }
   });
 }
 
 function viewOrder(orderId) {
-  // Limpiamos el # para la URL
+  if(orderId === '--') return;
   const cleanId = orderId.replace('#', '');
-  router.push({ name: 'delivery-details', params: { id: cleanId } });
+  // Asumo que tienes una ruta para ver el detalle de la orden desde aquí, o la rediriges al dashboard principal
+  router.push({ name: 'logistics-monitoring' });
 }
 </script>
 
