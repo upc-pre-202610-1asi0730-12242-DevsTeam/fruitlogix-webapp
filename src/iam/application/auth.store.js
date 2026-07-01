@@ -1,94 +1,102 @@
 ﻿import { defineStore } from 'pinia';
 
+const API_URL = 'https://fruitlogix-platform.onrender.com/api/v1/authentication';
+
 export const useAuthStore = defineStore('auth', {
     state: () => ({
         token: localStorage.getItem('token') || null,
-        role: localStorage.getItem('role') || null, // Se espera 'customer', 'distributor', or 'producer'
+        role: localStorage.getItem('role') || null,
         user: JSON.parse(localStorage.getItem('user') || 'null')
     }),
     actions: {
-        async login(email, password) {
-            // ✅ Mock API call para el prototipo
-            return new Promise((resolve) => {
-                setTimeout(() => {
-                    const fakeToken = 'mock-jwt-token-' + Date.now();
+        async login(username, password) {
+            try {
+                // 1. LLAMADA REAL AL BACKEND PARA EL JWT
+                const response = await fetch(`${API_URL}/sign-in`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
 
-                    // ✅ Buscamos si existe un usuario registrado con este correo
-                    const registeredUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
-                    const foundUser = registeredUsers.find(u => u.email === email);
+                if (!response.ok) {
+                    throw new Error('Usuario o contraseña incorrectos');
+                }
 
-                    let role = 'distributor'; // ✅ Rol por defecto si no se encuentra usuario (opcional)
-                    let userName = 'Operador FruitLogix';
+                const data = await response.json(); // Trae { id, username, token }
 
-                    if (foundUser) {
-                        // ✅ CORRECCIÓN 1: Usamos el rol "corto" que guardamos al registrar
-                        role = foundUser.role;
-                        userName = foundUser.username;
-                    } else {
-                        // ✅ OPCIONAL: Si no se encuentra, puedes resolver con error o dejar el default
-                        // resolve({ success: false, message: 'Usuario no encontrado' });
-                        // return;
-                    }
+                // 2. RESCATAMOS LA METADATA DEL FRONTEND (Para saber a qué panel enviarlo)
+                const registeredUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+                const foundMetadata = registeredUsers.find(u => u.username === username) || {};
 
-                    // ✅ Validamos que el rol sea uno de los reconocidos por el sistema
-                    if (!['customer', 'distributor', 'producer'].includes(role)) {
-                        console.error(`⚠️ Rol inválido detectado: ${role}. Reiniciando a distribuidor.`);
-                        role = 'distributor';
-                    }
+                // Si no se encuentra rol, asumimos distribuidor por defecto
+                const role = foundMetadata.role || 'distributor';
 
-                    // ✅ Actualizamos el estado de Pinia
-                    this.token = fakeToken;
-                    this.role = role;
-                    this.user = { email, name: userName, role };
+                // 3. GUARDAMOS LA SESIÓN REAL
+                this.token = data.token;
+                this.role = role;
+                this.user = { id: data.id, username: data.username, role };
 
-                    // ✅ Guardamos en el LocalStorage para persistencia
-                    localStorage.setItem('token', fakeToken);
-                    localStorage.setItem('role', role); // ✅ Guardamos el rol "corto" correcto (ej: 'producer')
-                    localStorage.setItem('user', JSON.stringify(this.user));
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('role', role);
+                localStorage.setItem('user', JSON.stringify(this.user));
 
-                    console.log(`✅ Login exitoso: ${email} como ${role}`);
-                    resolve({ success: true, role });
-                }, 500);
-            });
+                console.log(`✅ Login real exitoso: ${username} (Token JWT recibido)`);
+                return { success: true, role };
+
+            } catch (error) {
+                console.error('❌ Error de login:', error);
+                alert(error.message);
+                return { success: false, message: error.message };
+            }
         },
+
         async register(userData) {
-            return new Promise((resolve) => {
-                setTimeout(() => {
-                    // ✅ Map userType to internal "short" role
-                    const roleMap = {
-                        'Cliente Comercial': 'customer',
-                        'Distribuidor': 'distributor',
-                        'Productor': 'producer'
-                    };
+            try {
+                // 1. LLAMADA REAL AL BACKEND PARA CREAR LA CUENTA
+                const response = await fetch(`${API_URL}/sign-up`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: userData.username,
+                        password: userData.password
+                    })
+                });
 
-                    // ✅ CORRECCIÓN 2: Nos aseguramos de obtener el rol corto correcto
-                    const role = roleMap[userData.userType] || 'distributor';
+                if (!response.ok) {
+                    throw new Error('El usuario ya existe o los datos son inválidos');
+                }
 
-                    // ✅ Obtenemos usuarios existentes y agregamos el nuevo
-                    const registeredUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+                // 2. GUARDAMOS EL ROL Y EL TELÉFONO EN EL LOCALSTORAGE
+                const roleMap = {
+                    'Cliente Comercial': 'customer',
+                    'Distribuidor': 'distributor',
+                    'Productor': 'producer'
+                };
+                const role = roleMap[userData.userType] || 'distributor';
 
-                    // ✅ Verificamos si el correo ya existe
-                    if (registeredUsers.some(u => u.email === userData.email)) {
-                        console.error(`⚠️ El correo ${userData.email} ya está registrado.`);
-                        resolve({ success: false, message: 'Correo ya registrado' });
-                        return;
-                    }
+                const registeredUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
 
+                // Evitamos duplicados en el LocalStorage
+                if (!registeredUsers.some(u => u.username === userData.username)) {
                     registeredUsers.push({
                         username: userData.username,
                         email: userData.email,
                         phone: userData.phone,
-                        role: role, // ✅ Guardamos el rol CORTO ('producer', 'customer', 'distributor')
-                        userType: userData.userType // ✅ Guardamos el nombre largo solo como referencia visual
+                        role: role
                     });
-
                     localStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
+                }
 
-                    console.log(`✅ Registro exitoso en LocalStorage: ${userData.email} como ${role}`);
-                    resolve({ success: true, role });
-                }, 500);
-            });
+                console.log(`✅ Registro real exitoso en Base de Datos: ${userData.username}`);
+                return { success: true, role };
+
+            } catch (error) {
+                console.error('❌ Error de registro:', error);
+                alert(error.message);
+                return { success: false, message: error.message };
+            }
         },
+
         logout() {
             this.token = null;
             this.role = null;

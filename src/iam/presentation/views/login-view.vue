@@ -38,10 +38,10 @@
 
           <form @submit.prevent="handleLogin" class="form">
             <div class="form-group">
-              <label for="email">Correo electrónico</label>
+              <label for="username">Nombre de Usuario</label>
               <div class="input-wrapper">
-                <i class="pi pi-envelope icon"></i>
-                <input type="email" id="email" v-model="email" placeholder="nombre@fruitlogix.com" required />
+                <i class="pi pi-user icon"></i>
+                <input type="text" id="username" v-model="username" placeholder="Tu nombre de usuario" required />
               </div>
             </div>
 
@@ -104,7 +104,7 @@ import { useAuthStore } from '../../application/auth.store.js';
 export default {
   name: 'LoginView',
   setup() {
-    const email = ref('');
+    const username = ref('');
     const password = ref('');
     const rememberMe = ref(false);
     const showPassword = ref(false);
@@ -115,29 +115,31 @@ export default {
     const handleLogin = async () => {
       loading.value = true;
       try {
-        const result = await authStore.login(email.value, password.value);
-        // Redirect based on role
+        const result = await authStore.login(username.value, password.value);
+
+        if (result.success) {
         if (result.role === 'customer') {
           router.push('/customer/dashboard');
         } else {
           router.push('/dashboard');
         }
-      } catch (error) {
-        console.error('Error in login', error);
-      } finally {
-        loading.value = false;
       }
-    };
+    } catch (error) {
+      console.error('Error en login:', error);
+    } finally {
+      loading.value = false;
+    }
+  };
 
-    return {
-      email,
-      password,
-      rememberMe,
-      showPassword,
-      loading,
-      handleLogin
-    };
-  }
+  return {
+    username,
+    password,
+    rememberMe,
+    showPassword,
+    loading,
+    handleLogin
+  };
+}
 };
 </script>
 
