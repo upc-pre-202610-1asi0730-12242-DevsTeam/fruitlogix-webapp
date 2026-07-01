@@ -208,7 +208,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useOrderManagementStore } from '../../application/order-management.store.js';
 import { OrderManagementApi } from '../../infrastructure/order-management-api.js';
@@ -225,14 +225,29 @@ const activeConversationId = ref(null);
 const visualOrders = ref([]);
 
 const PRODUCER_ID = 3;
+const DEFAULT_DISTRIBUTOR_ID = 1;
 
 async function loadConversationForOrder(orderId) {
   try {
     const res = await chatApi.getConversations(PRODUCER_ID);
-    const match = res.data.find(c => String(c.orderId) === String(orderId));
+
+    let match = res.data.find(c => String(c.orderId) === String(orderId));
+
+    if (!match) {
+      console.log(`No hay chat para la Orden ${orderId}. Creando nuevo...`);
+      const newChatRes = await chatApi.createConversation({
+        orderId: parseInt(orderId),
+        participantAId: PRODUCER_ID,
+        participantBId: DEFAULT_DISTRIBUTOR_ID
+      });
+      match = newChatRes.data;
+    }
+
     if (match) {
       activeConversationId.value = match.id;
+
       const msgsRes = await chatApi.getMessages(match.id);
+
       const order = visualOrders.value.find(o => o.id === String(orderId));
       if (order) {
         order.chat = msgsRes.data.map(m => ({
@@ -243,7 +258,7 @@ async function loadConversationForOrder(orderId) {
       }
     }
   } catch (e) {
-    console.error('Error cargando chat del mini-chat:', e);
+    console.error('Error cargando/creando chat del mini-chat:', e);
   }
 }
 
@@ -295,6 +310,12 @@ onMounted(async () => {
     }
   } catch (err) {
     console.warn('Error cargando órdenes del productor:', err.message);
+  }
+});
+
+watch(selectedOrderId, async (newOrderId) => {
+  if (newOrderId) {
+    await loadConversationForOrder(newOrderId);
   }
 });
 

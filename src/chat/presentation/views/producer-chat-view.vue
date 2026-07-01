@@ -5,8 +5,16 @@
       <p class="page-sub">Comunícate con los distribuidores asignados a tus lotes de carga</p>
     </div>
     <div class="chat-layout">
-      <ChatList :conversations="conversations" :active-id="activeId" @select="activeId=$event" />
-      <ChatWindow :messages="currentMessages" :order-id="activeId" @send="sendMsg" />
+      <ChatList
+          :conversations="conversations"
+          :active-id="activeConversationId"
+          @select="activeConversationId = $event"
+      />
+      <ChatWindow
+          :messages="currentMessages"
+          :order-id="activeOrderId"
+          @send="sendMsg"
+      />
     </div>
   </div>
 </template>
@@ -29,17 +37,34 @@ const allMessages = ref({});
 
 onMounted(async () => {
   try {
-    const res = await chatApi.getConversations(PRODUCER_ID);
+    let res = await chatApi.getConversations(PRODUCER_ID);
+
+    const queryOrderId = route.query.orderId;
+    if (queryOrderId) {
+      let match = res.data.find(c => String(c.orderId) === String(queryOrderId));
+
+      if (!match) {
+        console.log(`Creando chat para la orden ${queryOrderId} desde vista completa...`);
+        await chatApi.createConversation({
+          orderId: parseInt(queryOrderId),
+          participantAId: PRODUCER_ID,
+          participantBId: 1 // DEFAULT_DISTRIBUTOR_ID
+        });
+        res = await chatApi.getConversations(PRODUCER_ID);
+      }
+    }
+
     conversations.value = res.data.map(c => ({
       id: c.id,
       orderId: c.orderId,
+      name: `Pedido #${c.orderId}`,
       preview: 'Ver mensajes...',
       time: c.createdAt ? new Date(c.createdAt).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) : '',
       unread: 0
     }));
 
-    if (route.query.orderId) {
-      const match = conversations.value.find(c => String(c.orderId) === String(route.query.orderId));
+    if (queryOrderId) {
+      const match = conversations.value.find(c => String(c.orderId) === String(queryOrderId));
       if (match) activeConversationId.value = match.id;
     }
 
@@ -47,7 +72,7 @@ onMounted(async () => {
       activeConversationId.value = conversations.value[0].id;
     }
   } catch (e) {
-    console.error('Error cargando conversaciones:', e);
+    console.error('Error cargando o creando conversaciones:', e);
   }
 });
 

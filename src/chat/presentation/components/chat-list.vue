@@ -7,9 +7,9 @@
     <div v-for="c in conversations" :key="c.id"
          class="conv-item" :class="{ active: activeId===c.id }"
          @click="$emit('select', c.id)">
-      <div class="av">FD</div>
+      <div class="av">{{ c.name ? c.name.slice(0,2).toUpperCase() : 'FD' }}</div>
       <div class="conv-body">
-        <div class="conv-name">FruitLogix · #{{ c.id }}</div>
+        <div class="conv-name">{{ c.name }}</div>
         <div class="conv-preview">{{ c.preview }}</div>
       </div>
       <div class="conv-meta">
