@@ -80,8 +80,8 @@
         <!-- Acción si pendiente -->
         <div v-if="order.paymentStatus !== 'PAGADO'" class="boleta-action">
           <button
-            class="btn-pay-now"
-            @click="router.push({ name: 'customer-payment', params: { orderId: order.id } })"
+              class="btn-pay-now"
+              @click="router.push(`/checkout?type=order&amount=${order.total}&currency=pen&orderId=${order.id}`)"
           >
             <i class="pi pi-credit-card" style="margin-right: 6px;"></i>
             Pagar Ahora — S/ {{ order.total.toFixed(2) }}

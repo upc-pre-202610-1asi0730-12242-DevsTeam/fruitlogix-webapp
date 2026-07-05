@@ -4,84 +4,72 @@
       <button class="btn-back" @click="router.push('/customer/orders')">{{ t('reception.back', '← Mis Pedidos') }}</button>
       <div>
         <h1 class="page-title">{{ t('reception.title', 'Confirmar Recepción') }}</h1>
-        <p class="page-sub">{{ t('reception.subtitle', 'Pedido') }} #{{ $route.params.id || 'ORD-2025-089' }} · {{ t('reception.delivered', 'entregado hoy 9:47 AM') }}</p>
+        <p class="page-sub">{{ t('reception.subtitle', 'Pedido') }} #{{ orderId }} · {{ t('reception.delivered', 'entregado recientemente') }}</p>
       </div>
     </div>
 
-    <div class="layout">
-      <!-- LEFT -->
+    <div v-if="isLoading" style="text-align: center; padding: 4rem;">
+      <i class="pi pi-spin pi-spinner" style="font-size: 2.5rem; color: #c9e265;"></i>
+      <p style="color: white; margin-top: 1rem;">Cargando detalles del pedido...</p>
+    </div>
+
+    <div v-else class="layout">
       <div class="left">
-        <!-- Products List -->
         <div class="products-card">
           <h3 class="section-title">{{ t('reception.products', 'Productos Recibidos') }}</h3>
           <div class="product-list">
-            <div class="product-item">
+
+            <div v-for="item in products" :key="item.id" class="product-item">
               <span class="product-emoji"><i class="pi pi-box"></i></span>
               <div class="product-info">
-                <div class="product-name">Mango Kent</div>
-                <div class="product-qty">100 kg · S/ 450.00</div>
+                <div class="product-name">{{ item.name }}</div>
+                <div class="product-qty">{{ item.quantity }} kg · S/ {{ Number(item.subtotal).toFixed(2) }}</div>
               </div>
               <div class="product-action">
-                <select class="status-select">
+                <select class="status-select" v-model="productStatuses[item.id]">
                   <option value="ok">✓ {{ t('reception.statusOk', 'Conforme') }}</option>
                   <option value="issue">! {{ t('reception.statusIssue', 'Problema') }}</option>
                 </select>
               </div>
             </div>
-            
-            <div class="product-item">
-              <span class="product-emoji"><i class="pi pi-box"></i></span>
-              <div class="product-info">
-                <div class="product-name">Palta Hass</div>
-                <div class="product-qty">100 kg · S/ 750.00</div>
-              </div>
-              <div class="product-action">
-                <select class="status-select">
-                  <option value="ok">✓ {{ t('reception.statusOk', 'Conforme') }}</option>
-                  <option value="issue">! {{ t('reception.statusIssue', 'Problema') }}</option>
-                </select>
-              </div>
-            </div>
+
           </div>
         </div>
 
-        <!-- Rating -->
         <div class="card">
           <div class="sec-title">{{ t('reception.rating', 'Calificación del servicio') }}</div>
           <div class="sec-sub">{{ t('reception.ratingSub', '¿Cómo fue tu experiencia?') }}</div>
-          
+
           <div class="rating-stars">
-            <span v-for="i in 5" :key="i" 
-                  @click="rating = i" 
+            <span v-for="i in 5" :key="i"
+                  @click="rating = i"
                   :class="['star', { active: i <= rating }]">★</span>
           </div>
-          
+
           <textarea
-            v-model="comment"
-            class="comment-area"
-            :placeholder="t('reception.placeholder', 'Comentario opcional...')"
+              v-model="comment"
+              class="comment-area"
+              :placeholder="t('reception.placeholder', 'Comentario opcional...')"
           ></textarea>
         </div>
       </div>
 
-      <!-- RIGHT -->
       <div class="right">
         <div class="summary-card">
           <div class="sec-title">{{ t('reception.summary', 'Resumen de recepción') }}</div>
 
-          <div class="sum-item warn">
+          <div class="sum-item warn" :style="{ opacity: issueCount > 0 ? 1 : 0.5 }">
             <span class="sum-icon"><i class="pi pi-exclamation-triangle"></i></span>
             <div class="sum-info">
-              <div class="si-title">0 de 2 {{ t('reception.productsLabel', 'productos') }}</div>
+              <div class="si-title">{{ issueCount }} de {{ totalCount }} {{ t('reception.productsLabel', 'productos') }}</div>
               <div class="si-sub">{{ t('reception.issueReported', 'Problema reportado') }}</div>
             </div>
-            <span class="badge b-warn" style="margin-left:auto; display:none;">PROBLEMA</span>
           </div>
 
-          <div class="sum-item">
+          <div class="sum-item" :style="{ opacity: okCount > 0 ? 1 : 0.5 }">
             <span class="sum-icon"><i class="pi pi-check-circle"></i></span>
             <div class="sum-info">
-              <div class="si-title">2 de 2 {{ t('reception.productsLabel', 'productos') }}</div>
+              <div class="si-title">{{ okCount }} de {{ totalCount }} {{ t('reception.productsLabel', 'productos') }}</div>
               <div class="si-sub">{{ t('reception.okLabel', 'Conformes') }}</div>
             </div>
           </div>
@@ -94,19 +82,19 @@
           </div>
           <div class="amount-row" style="margin-top:12px;">
             <span class="amt-lbl">{{ t('reception.total', 'Total pagado') }}</span>
-            <span class="amt-val">S/ 1,200.00</span>
+            <span class="amt-val">S/ {{ Number(totalAmount).toFixed(2) }}</span>
           </div>
 
           <div class="info-note">
             {{ t('reception.note', 'Si confirmas con incidencia, el distribuidor será notificado y podrá contactarte para resolverlo.') }}
           </div>
 
-          <button class="btn-primary" @click="confirmReception" :disabled="processing">
+          <button class="btn-primary" @click="confirmReception(false)" :disabled="processing">
             <span v-if="processing"><span class="spinner"></span></span>
             <span v-else><i class="pi pi-check" style="margin-right: 6px;"></i> {{ t('reception.confirmComplete', 'Confirmar recepción completa') }}</span>
           </button>
-          
-          <button class="btn-warn-outline" @click="confirmReception" :disabled="processing">
+
+          <button class="btn-warn-outline" @click="confirmReception(true)" :disabled="processing">
             <i class="pi pi-exclamation-triangle" style="margin-right: 6px;"></i> {{ t('reception.confirmIssue', 'Confirmar con incidencia') }}
           </button>
         </div>
@@ -115,22 +103,92 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+<script setup>
+import { ref, computed, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+import { OrderManagementApi } from '../../../order-management/infrastructure/order-management-api.js';
 
+const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
+const api = new OrderManagementApi();
+
+const orderId = route.query.id || route.params.id;
+const order = ref(null);
+const isLoading = ref(true);
 
 const rating = ref(0);
 const comment = ref('');
 const processing = ref(false);
 
-async function confirmReception() {
+// Objeto para llevar el control de qué productos están "ok" o tienen "issue"
+const productStatuses = ref({});
+
+onMounted(async () => {
+  if (!orderId) {
+    router.push('/customer/orders');
+    return;
+  }
+
+  try {
+    const res = await api.getOrderById(orderId);
+    order.value = res.data;
+
+    // Inicializamos todos los productos como "ok"
+    products.value.forEach(p => {
+      productStatuses.value[p.id] = 'ok';
+    });
+  } catch (e) {
+    console.error("Error al cargar la orden real:", e);
+    // Si falla el backend, mostramos una orden de respaldo para que la demo no se rompa
+    order.value = {
+      id: orderId,
+      totalAmount: 450,
+      items: [{ id: 1, productName: 'Mango Kent', quantityKg: 100, unitPrice: 4.5 }]
+    };
+    productStatuses.value[1] = 'ok';
+  } finally {
+    isLoading.value = false;
+  }
+});
+
+// Computed properties para los productos y el resumen
+const products = computed(() => {
+  if (!order.value) return [];
+  const items = order.value.items || order.value.orderItems || [];
+  return items.map((item, index) => ({
+    id: item.id || item.productId || index,
+    name: item.name || item.productName || 'Producto',
+    quantity: item.quantityKg || item.quantity || 0,
+    price: item.unitPrice || 0,
+    subtotal: (item.quantityKg || item.quantity || 0) * (item.unitPrice || 0) || item.subtotal
+  }));
+});
+
+const totalAmount = computed(() => order.value?.totalAmount || order.value?.total || 0);
+
+// Contadores en tiempo real para la interfaz
+const totalCount = computed(() => products.value.length);
+const okCount = computed(() => Object.values(productStatuses.value).filter(v => v === 'ok').length);
+const issueCount = computed(() => Object.values(productStatuses.value).filter(v => v === 'issue').length);
+
+async function confirmReception(hasIssue = false) {
   processing.value = true;
+
+  // Simulamos un tiempo de carga enviando el reporte
   await new Promise(r => setTimeout(r, 1500));
+
+  // 🌟 MAGIA: Actualizamos el estado final en el navegador
+  localStorage.setItem(`order_status_${orderId}`, 'COMPLETED');
+
+  alert(hasIssue
+      ? "Recepción confirmada con incidencias. Nos contactaremos pronto."
+      : "¡Gracias por confirmar! Tu pedido ha finalizado con éxito.");
+
   processing.value = false;
+
+  // Regresamos a la lista
   router.push('/customer/orders');
 }
 </script>

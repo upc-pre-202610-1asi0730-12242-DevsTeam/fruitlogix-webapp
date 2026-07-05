@@ -1,33 +1,25 @@
-import axios from "axios";
+import axios from 'axios';
 
-
-/**
- * Base infrastructure class that creates and exposes a pre-configured Axios instance.
- * All bounded-context API gateways extend this class.
- *
- * @class BaseApi
- */
 export class BaseApi {
-    /** @type {import('axios').AxiosInstance} */
-    #http;
-
-    /**
-     * Initialises the Axios instance with the platform base URL and default headers.
-     */
     constructor() {
-        this.#http = axios.create({
+        this.http = axios.create({
+            baseURL: 'https://fruitlogix-platform.onrender.com/api/v1',
             headers: {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
             }
         });
-    }
 
-    /**
-     * The shared Axios HTTP client.
-     * @returns {import('axios').AxiosInstance}
-     */
-    get http() {
-        return this.#http;
+        this.http.interceptors.request.use(
+            (config) => {
+                const token = localStorage.getItem('token');
+                if (token) {
+                    config.headers['Authorization'] = `Bearer ${token}`;
+                }
+                return config;
+            },
+            (error) => {
+                return Promise.reject(error);
+            }
+        );
     }
 }

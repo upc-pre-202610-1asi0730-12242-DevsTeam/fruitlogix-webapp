@@ -8,17 +8,14 @@
       <button class="btn-primary" @click="router.push('/customer/catalog')">{{ t('orders.new', 'Nuevo Pedido') }}</button>
     </div>
 
-    <!-- Empty state -->
     <div v-if="liveOrders.length === 0" class="empty-state">
-      <div class="empty-icon">📦</div>
+      <div class="empty-icon"><i class="pi pi-box" style="font-size: 3rem;"></i></div>
       <h3>{{ t('orders.empty', 'No tienes pedidos') }}</h3>
       <p>{{ t('orders.emptyDesc', 'Tu historial de pedidos aparecerá aquí') }}</p>
       <button class="btn-primary" @click="router.push('/customer/catalog')">{{ t('orders.goCatalog', 'Ir al catálogo') }}</button>
     </div>
 
-    <!-- Orders list -->
     <div v-else class="orders-layout">
-      <!-- Left: list -->
       <div class="orders-list">
         <div
             v-for="order in liveOrders"
@@ -37,18 +34,34 @@
             <div class="order-date">{{ formatDate(order.createdAt) }}</div>
             <div class="order-total-mini">S/ {{ Number(order.totalAmount || 0).toFixed(2) }}</div>
           </div>
-          <div class="order-card-actions" v-if="false" @click.stop>
-            <span class="pending-pay-badge">{{ t('orders.payPending', 'Pago pendiente') }}</span>
-            <button class="btn-pay-now" @click="router.push({ name: 'customer-payment', params: { orderId: order.id } })">{{ t('orders.payNow', 'Pagar Ahora') }}</button>
-          </div>
         </div>
       </div>
 
-      <!-- Right: detail + tracking -->
       <div class="order-detail" v-if="selectedOrder">
-        <!-- Order info -->
         <div class="detail-section">
-          <h3 class="section-title">{{ t('orders.detail', 'Detalle del Pedido') }}</h3>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3 class="section-title" style="margin-bottom: 0;">{{ t('orders.detail', 'Detalle del Pedido') }}</h3>
+
+            <div style="display: flex; gap: 10px;">
+              <button
+                  v-if="selectedOrder.status === 'InTransit'"
+                  class="btn-primary"
+                  @click="goToLiveTracking(selectedOrder.idRaw)"
+                  style="background-color: #c9e265; color: #122216; font-weight: bold; border-radius: 8px; padding: 0.5rem 1rem;"
+              >
+                <i class="pi pi-map-marker" style="margin-right: 0.5rem;"></i> Rastrear Camión
+              </button>
+              <button
+                  v-if="selectedOrder.status === 'Delivered'"
+                  class="btn-primary"
+                  @click="router.push('/customer/reception?id=' + selectedOrder.idRaw)"
+                  style="background-color: #1bb37e; color: white; font-weight: bold; border-radius: 8px; padding: 0.5rem 1rem;"
+              >
+                <i class="pi pi-check-square" style="margin-right: 0.5rem;"></i> Confirmar Recepción
+              </button>
+            </div>
+          </div>
+
           <div class="detail-grid">
             <div class="detail-cell">
               <span class="detail-label">ID</span>
@@ -79,11 +92,9 @@
           </div>
         </div>
 
-        <!-- Tracking -->
         <div class="tracking-section" v-if="selectedOrder.paymentStatus === 'PAGADO'">
-          <h3 class="section-title">{{ t('orders.tracking', 'Seguimiento') }}</h3>
+          <h3 class="section-title">{{ t('orders.tracking', 'Seguimiento Operativo') }}</h3>
 
-          <!-- Actor legend -->
           <div class="actor-legend">
             <div class="legend-item">
               <span class="legend-dot producer"></span>
@@ -95,7 +106,6 @@
             </div>
           </div>
 
-          <!-- Tracking timeline -->
           <div class="tracking-timeline">
             <div
                 v-for="(step, index) in selectedOrder.trackingSteps"
@@ -127,25 +137,9 @@
             </div>
           </div>
 
-          <!-- Simulate progress (demo) -->
-          <button class="btn-simulate" @click="advanceTracking" v-if="canAdvance">
-            {{ t('orders.simulate', 'Simular Avance') }}
-          </button>
-          <div v-else class="tracking-complete">
-            <span>{{ t('orders.delivered', 'Pedido entregado exitosamente') }}</span>
-          </div>
-        </div>
-
-        <!-- Pending payment notice -->
-        <div class="tracking-pending" v-else>
-          <div class="pending-icon"><i class="pi pi-credit-card"></i></div>
-          <h4>{{ t('orders.payMsg', 'Pago Pendiente') }}</h4>
-          <p>{{ t('orders.payDesc', 'Completa el pago para iniciar la preparación de tu pedido.') }}</p>
-          <button class="btn-primary" @click="router.push({ name: 'customer-payment', params: { orderId: selectedOrder.id } })">{{ t('orders.goPay', 'Ir a Pagar') }}</button>
         </div>
       </div>
 
-      <!-- No selection -->
       <div class="order-detail empty-detail" v-else>
         <div class="empty-detail-icon"><i class="pi pi-mouse"></i></div>
         <p>{{ t('orders.selectHint', 'Selecciona un pedido para ver los detalles') }}</p>
@@ -169,14 +163,10 @@ const orderManagementApi = new OrderManagementApi();
 onMounted(() => {
   orderManagementApi.getOrders()
       .then(response => {
-        // 🕵️‍♂️ AQUÍ VEREMOS LA VERDAD EN LA CONSOLA (F12)
-        console.log("📦 DATOS CRUDOS DE C#:", response.data);
-
         const rawOrders = response.data || [];
 
         liveOrders.value = rawOrders.map(order => {
           const backendItems = order.items || order.orderItems || [];
-
           const mappedFruits = backendItems.map(item => ({
             id: item.id || item.productId || Math.random(),
             name: item.name || item.productName || 'Fruta',
@@ -184,20 +174,28 @@ onMounted(() => {
             subtotal: item.unitPrice ? (item.quantityKg * item.unitPrice) : 0
           }));
 
+          // 🌟 MAGIA: Leemos el estado del navegador (Productor o Distribuidor)
+          const localStatus = localStorage.getItem(`order_status_${order.id}`);
+          let finalStatus = order.status;
+
+          if (localStatus === 'READY') finalStatus = 'InPreparation'; // Productor inspeccionó
+          if (localStatus === 'IN_TRANSIT') finalStatus = 'InTransit'; // Productor despachó
+          if (localStatus === 'DELIVERED') finalStatus = 'Delivered';  // Camión llegó
+
           return {
             id: `#ORD-REAL-${order.id}`,
             idRaw: order.id,
             createdAt: order.createdAt || new Date().toISOString(),
-            status: order.status,
+            status: finalStatus, // Usamos el estado sincronizado
             paymentStatus: 'PAGADO',
             totalAmount: Number(order.totalAmount || order.total || 0),
             selectedFruits: mappedFruits,
             trackingSteps: [
-              { id: 1, label: 'Pedido Recibido', description: 'El cliente ha confirmado el pedido.', status: 'done', actor: 'distributor', time: '09:00' },
-              { id: 2, label: 'Asignando Productor', description: 'Buscando el mejor productor disponible.', status: order.status === 'Pending' ? 'active' : 'done', actor: 'distributor' },
-              { id: 3, label: 'En Preparación', description: 'El productor está empacando las frutas.', status: order.status === 'InPreparation' ? 'active' : (['InTransit', 'Delivered'].includes(order.status) ? 'done' : 'pending'), actor: 'producer' },
-              { id: 4, label: 'En Ruta de Distribución', description: 'El cargamento va hacia el almacén central.', status: order.status === 'InTransit' ? 'active' : (order.status === 'Delivered' ? 'done' : 'pending'), actor: 'distributor' },
-              { id: 5, label: 'Entregado', description: 'El pedido llegó a su destino final.', status: order.status === 'Delivered' ? 'active' : 'pending', actor: 'distributor' }
+              { id: 1, label: 'Pedido Recibido', status: 'done', actor: 'distributor' },
+              { id: 2, label: 'Asignando Productor', status: finalStatus === 'Pending' ? 'active' : 'done', actor: 'distributor' },
+              { id: 3, label: 'En Preparación', status: finalStatus === 'InPreparation' ? 'active' : (['InTransit', 'Delivered'].includes(finalStatus) ? 'done' : 'pending'), actor: 'producer' },
+              { id: 4, label: 'En Ruta de Distribución', status: finalStatus === 'InTransit' ? 'active' : (finalStatus === 'Delivered' ? 'done' : 'pending'), actor: 'distributor' },
+              { id: 5, label: 'Entregado', status: finalStatus === 'Delivered' ? 'active' : 'pending', actor: 'distributor' }
             ]
           };
         });
@@ -206,21 +204,18 @@ onMounted(() => {
           selectedOrderId.value = liveOrders.value[0].id;
         }
       })
-      .catch(error => {
-        console.error("Error crítico al recuperar las órdenes:", error);
-      });
+      .catch(error => console.error("Error crítico:", error));
 });
 
 const selectedOrder = computed(() => liveOrders.value.find(o => o.id === selectedOrderId.value));
 
-const canAdvance = computed(() => {
-  if (!selectedOrder.value || !selectedOrder.value.trackingSteps) return false;
-  const steps = selectedOrder.value.trackingSteps;
-  return steps.some(s => s.status !== 'done') && steps[steps.length - 1].status !== 'done';
-});
-
 function selectOrder(id) {
   selectedOrderId.value = id;
+}
+
+// 🌟 Función que redirige al Tracking con el ID real
+function goToLiveTracking(idRaw) {
+  router.push({ name: 'customer-tracking', params: { id: idRaw } });
 }
 
 function getStatusLabel(status) {
@@ -250,18 +245,6 @@ function getStatusClass(status) {
 function formatDate(dateStr) {
   if (!dateStr) return 'Fecha no disponible';
   return new Date(dateStr).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-function advanceTracking() {
-  const order = selectedOrder.value;
-  if (!order || !order.trackingSteps) return;
-  const steps = order.trackingSteps;
-  const activeIdx = steps.findIndex(s => s.status === 'active');
-  if (activeIdx === -1) return;
-  steps[activeIdx].status = 'done';
-  if (activeIdx + 1 < steps.length) {
-    steps[activeIdx + 1].status = 'active';
-  }
 }
 </script>
 

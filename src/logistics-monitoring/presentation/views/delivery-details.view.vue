@@ -1,252 +1,288 @@
 <template>
-  <div class="page-wrapper" v-if="delivery">
-    <header class="tracking-header">
-      <div class="header-left">
-        <pv-button icon="pi pi-arrow-left" class="back-btn" @click="router.back()" />
-        <div class="title-wrap">
-          <span class="context-label">DELIVERY TRACKING</span>
-          <h1 class="order-title">Order {{ delivery.orderId }}</h1>
-        </div>
-      </div>
-      <div class="header-right">
-        <div class="status-indicator">
-          <span class="dot pulse"></span>
-          <span>Sensors Active</span>
-        </div>
-      </div>
-    </header>
+  <div class="page-wrapper">
 
-    <div class="details-grid">
-      <aside class="side-panel">
-        <div class="card driver-card">
-          <div class="card-header-mini">
-            <i class="pi pi-user" />
-            <span>ASSIGNED DRIVER</span>
-          </div>
-          <div class="driver-profile">
-            <div class="driver-avatar-wrap">
-              <img src="https://ui-avatars.com/api/?name=Carlos+Mendez&background=c9e265&color=1a3020&size=100&bold=true" alt="Driver" class="driver-avatar" />
-              <div class="rating-badge">
-                <i class="pi pi-star-fill" /> 4.9
-              </div>
-            </div>
-            <div class="driver-info">
-              <h3>{{ delivery.assignedDriver }}</h3>
-              <span class="phone-link"><i class="pi pi-phone" /> +1 (555) 019-2831</span>
-            </div>
-          </div>
-          <pv-button label="Message Driver" icon="pi pi-comment" class="msg-btn" @click="goToChat(delivery.orderId)" />
-        </div>
-
-        <div class="card vehicle-card">
-          <div class="card-header-mini">
-            <i class="pi pi-truck" />
-            <span>VEHICLE DETAILS</span>
-          </div>
-          <div class="vehicle-info-grid">
-            <div class="info-box">
-              <span class="box-label">PLATE NUMBER</span>
-              <span class="box-value">{{ delivery.vehiclePlate }}</span>
-            </div>
-            <div class="info-box">
-              <span class="box-label">VEHICLE TYPE</span>
-              <span class="box-value">Refrigerated 18T</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="card manifest-card">
-          <div class="card-header-mini">
-            <i class="pi pi-list" />
-            <span>CARGO MANIFEST</span>
-          </div>
-          <div class="manifest-list">
-            <div class="manifest-item">
-              <div class="item-left">
-                <i class="pi pi-apple icon-fruit" />
-                <span>Gala Apples (Premium)</span>
-              </div>
-              <span class="item-qty">2,400 kg</span>
-            </div>
-            <div class="manifest-item">
-              <div class="item-left">
-                <i class="pi pi-shopping-bag icon-fruit" />
-                <span>Table Grapes</span>
-              </div>
-              <span class="item-qty">1,150 kg</span>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <main class="main-content">
-        <div class="sensor-row">
-          <div class="card sensor-card temp">
-            <div class="card-header-mini">
-              <div class="label-with-icon">
-                <i class="pi pi-thermometer" />
-                <span>Internal Temperature</span>
-              </div>
-              <span class="sensor-status green">Stable</span>
-            </div>
-            <div class="sensor-main">
-              <div class="sensor-value">4.2<span class="unit">°C</span></div>
-              <div class="sparkline">
-                <svg viewBox="0 0 100 30" class="spark-svg">
-                  <path d="M0,25 Q10,15 20,20 T40,18 T60,22 T80,15 T100,20" class="spark-path temp-path" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div class="card sensor-card hum">
-            <div class="card-header-mini">
-              <div class="label-with-icon">
-                <i class="pi pi-cloud" />
-                <span>Relative Humidity</span>
-              </div>
-              <span class="sensor-status yellow"><i class="pi pi-arrow-down" /> -2%</span>
-            </div>
-            <div class="sensor-main">
-              <div class="sensor-value">85<span class="unit">%</span></div>
-              <div class="sparkline">
-                <svg viewBox="0 0 100 30" class="spark-svg">
-                  <path d="M0,20 Q20,25 40,15 T60,20 T80,22 T100,10" class="spark-path hum-path" />
-                </svg>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="card telemetry-card">
-          <div class="card-header-mini">
-            <i class="pi pi-map" />
-            <span>ACTIVE ROUTE TELEMETRY</span>
-          </div>
-
-          <div class="route-stepper">
-            <div class="stepper-line">
-              <div class="line-progress" style="width: 75%"></div>
-            </div>
-            <div class="step completed">
-              <div class="step-dot"></div>
-              <div class="step-info">
-                <span class="step-name">Finca El Sol</span>
-                <span class="step-time">06:00 AM</span>
-              </div>
-            </div>
-            <div class="step completed">
-              <div class="step-dot"></div>
-              <div class="step-info">
-                <span class="step-name">Checkpoint Alpha</span>
-                <span class="step-time">09:30 AM</span>
-              </div>
-            </div>
-            <div class="step active">
-              <div class="step-dot"><i class="pi pi-truck" /></div>
-              <div class="step-info">
-                <span class="step-name">In Transit</span>
-                <span class="step-time">Current</span>
-              </div>
-            </div>
-            <div class="step pending">
-              <div class="step-dot"></div>
-              <div class="step-info">
-                <span class="step-name">Processing Hub Central</span>
-                <span class="step-time">ETA: 12:45 PM</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="telemetry-stats">
-            <div class="t-stat">
-              <span class="t-label">Current Speed</span>
-              <span class="t-value">82 <small>km/h</small></span>
-            </div>
-            <div class="t-stat">
-              <span class="t-label">Distance Left</span>
-              <span class="t-value">45 <small>km</small></span>
-            </div>
-            <div class="t-stat">
-              <span class="t-label">ETA Countdown</span>
-              <span class="t-value highlight">00:45:00</span>
-            </div>
-            <div class="t-stat">
-              <span class="t-label">Path Deviation</span>
-              <span class="t-value">0.0%</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="card alerts-log-card">
-          <div class="card-header-mini">
-            <div class="label-with-icon">
-              <i class="pi pi-bell" />
-              <span>QUALITY ALERTS LOG</span>
-            </div>
-            <pv-button label="VER DETALLES" icon="pi pi-external-link" class="p-button-text detail-link-btn" @click="router.push({ name: 'analytics-incidents' })" />
-          </div>
-          <div class="alerts-list-full">
-            <div class="alert-row warning">
-              <div class="alert-icon-box"><i class="pi pi-exclamation-triangle" /></div>
-              <div class="alert-text">
-                <span class="alert-msg">Humidity Threshold Warning</span>
-                <span class="alert-sub">Relative humidity dropped below 82% briefly during door opening at checkpoint.</span>
-              </div>
-              <span class="alert-time-tag">09:32 AM</span>
-            </div>
-            <div class="alert-row info">
-              <div class="alert-icon-box"><i class="pi pi-info-circle" /></div>
-              <div class="alert-text">
-                <span class="alert-msg">Optimal Temperature Reached</span>
-                <span class="alert-sub">Container temperature stabilized at target 4.2°C.</span>
-              </div>
-              <span class="alert-time-tag">06:45 AM</span>
-            </div>
-          </div>
-        </div>
-      </main>
+    <div v-if="isLoading" class="loading-state" style="text-align: center; padding: 4rem; color: #c9e265;">
+      <i class="pi pi-spin pi-spinner" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+      <p style="color: #8fba8f; font-weight: bold;">Cargando telemetría y manifiesto de carga...</p>
     </div>
+
+    <template v-else-if="delivery">
+      <header class="tracking-header">
+        <div class="header-left">
+          <pv-button icon="pi pi-arrow-left" class="back-btn" @click="router.back()" />
+          <div class="title-wrap">
+            <span class="context-label">DELIVERY TRACKING</span>
+            <h1 class="order-title">Order {{ delivery.orderId }}</h1>
+          </div>
+        </div>
+        <div class="header-right">
+          <div class="status-indicator">
+            <span class="dot pulse"></span>
+            <span>Sensors Active</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="details-grid">
+        <aside class="side-panel">
+          <div class="card driver-card">
+            <div class="card-header-mini">
+              <i class="pi pi-user" />
+              <span>ASSIGNED DRIVER</span>
+            </div>
+            <div class="driver-profile">
+              <div class="driver-avatar-wrap">
+                <img :src="`https://ui-avatars.com/api/?name=${delivery.assignedDriver}&background=c9e265&color=1a3020&size=100&bold=true`" alt="Driver" class="driver-avatar" />
+                <div class="rating-badge">
+                  <i class="pi pi-star-fill" /> 4.9
+                </div>
+              </div>
+              <div class="driver-info">
+                <h3>{{ delivery.assignedDriver }}</h3>
+                <span class="phone-link"><i class="pi pi-phone" /> {{ delivery.driverPhone || '+1 (555) 019-2831' }}</span>
+              </div>
+            </div>
+            <pv-button label="Message Driver" icon="pi pi-comment" class="msg-btn" @click="goToChat(delivery.orderId)" />
+          </div>
+
+          <div class="card vehicle-card">
+            <div class="card-header-mini">
+              <i class="pi pi-truck" />
+              <span>VEHICLE DETAILS</span>
+            </div>
+            <div class="vehicle-info-grid">
+              <div class="info-box">
+                <span class="box-label">PLATE NUMBER</span>
+                <span class="box-value">{{ delivery.vehiclePlate }}</span>
+              </div>
+              <div class="info-box">
+                <span class="box-label">VEHICLE TYPE</span>
+                <span class="box-value">{{ delivery.vehicleType || 'Refrigerated 18T' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card manifest-card">
+            <div class="card-header-mini">
+              <i class="pi pi-list" />
+              <span>CARGO MANIFEST</span>
+            </div>
+            <div class="manifest-list">
+              <div v-if="orderItems.length === 0" style="color: #6b8a6b; font-size: 0.85rem;">No hay productos detallados.</div>
+              <div v-else v-for="item in orderItems" :key="item.name" class="manifest-item">
+                <div class="item-left">
+                  <i class="pi pi-shopping-bag icon-fruit" />
+                  <span>{{ item.name }}</span>
+                </div>
+                <span class="item-qty">{{ item.quantity }}</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <main class="main-content">
+          <div class="sensor-row">
+            <div class="card sensor-card temp">
+              <div class="card-header-mini">
+                <div class="label-with-icon">
+                  <i class="pi pi-thermometer" />
+                  <span>Internal Temperature</span>
+                </div>
+                <span class="sensor-status green">Stable</span>
+              </div>
+              <div class="sensor-main">
+                <div class="sensor-value">4.2<span class="unit">°C</span></div>
+                <div class="sparkline">
+                  <svg viewBox="0 0 100 30" class="spark-svg">
+                    <path d="M0,25 Q10,15 20,20 T40,18 T60,22 T80,15 T100,20" class="spark-path temp-path" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div class="card sensor-card hum">
+              <div class="card-header-mini">
+                <div class="label-with-icon">
+                  <i class="pi pi-cloud" />
+                  <span>Relative Humidity</span>
+                </div>
+                <span class="sensor-status yellow"><i class="pi pi-arrow-down" /> -2%</span>
+              </div>
+              <div class="sensor-main">
+                <div class="sensor-value">85<span class="unit">%</span></div>
+                <div class="sparkline">
+                  <svg viewBox="0 0 100 30" class="spark-svg">
+                    <path d="M0,20 Q20,25 40,15 T60,20 T80,22 T100,10" class="spark-path hum-path" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card telemetry-card">
+            <div class="card-header-mini">
+              <i class="pi pi-map" />
+              <span>ACTIVE ROUTE TELEMETRY</span>
+            </div>
+
+            <div class="route-stepper">
+              <div class="stepper-line">
+                <div class="line-progress" style="width: 75%"></div>
+              </div>
+              <div class="step completed">
+                <div class="step-dot"></div>
+                <div class="step-info">
+                  <span class="step-name">Finca El Sol</span>
+                  <span class="step-time">06:00 AM</span>
+                </div>
+              </div>
+              <div class="step completed">
+                <div class="step-dot"></div>
+                <div class="step-info">
+                  <span class="step-name">Checkpoint Alpha</span>
+                  <span class="step-time">09:30 AM</span>
+                </div>
+              </div>
+              <div class="step active">
+                <div class="step-dot"><i class="pi pi-truck" /></div>
+                <div class="step-info">
+                  <span class="step-name">In Transit</span>
+                  <span class="step-time">Current</span>
+                </div>
+              </div>
+              <div class="step pending">
+                <div class="step-dot"></div>
+                <div class="step-info">
+                  <span class="step-name">Processing Hub Central</span>
+                  <span class="step-time">ETA: 12:45 PM</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="telemetry-stats">
+              <div class="t-stat">
+                <span class="t-label">Current Speed</span>
+                <span class="t-value">82 <small>km/h</small></span>
+              </div>
+              <div class="t-stat">
+                <span class="t-label">Distance Left</span>
+                <span class="t-value">45 <small>km</small></span>
+              </div>
+              <div class="t-stat">
+                <span class="t-label">ETA Countdown</span>
+                <span class="t-value highlight">00:45:00</span>
+              </div>
+              <div class="t-stat">
+                <span class="t-label">Path Deviation</span>
+                <span class="t-value">0.0%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card alerts-log-card">
+            <div class="card-header-mini">
+              <div class="label-with-icon">
+                <i class="pi pi-bell" />
+                <span>QUALITY ALERTS LOG</span>
+              </div>
+              <pv-button label="VER DETALLES" icon="pi pi-external-link" class="p-button-text detail-link-btn" @click="router.push({ name: 'analytics-incidents' })" />
+            </div>
+            <div class="alerts-list-full">
+              <div class="alert-row warning">
+                <div class="alert-icon-box"><i class="pi pi-exclamation-triangle" /></div>
+                <div class="alert-text">
+                  <span class="alert-msg">Humidity Threshold Warning</span>
+                  <span class="alert-sub">Relative humidity dropped below 82% briefly during door opening at checkpoint.</span>
+                </div>
+                <span class="alert-time-tag">09:32 AM</span>
+              </div>
+              <div class="alert-row info">
+                <div class="alert-icon-box"><i class="pi pi-info-circle" /></div>
+                <div class="alert-text">
+                  <span class="alert-msg">Optimal Temperature Reached</span>
+                  <span class="alert-sub">Container temperature stabilized at target 4.2°C.</span>
+                </div>
+                <span class="alert-time-tag">06:45 AM</span>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useLogisticsMonitoringStore } from '../../application/logistics-monitoring.store.js';
+// Importamos tu BaseApi
+import { BaseApi } from '../../../shared/infrastructure/base-api.js';
 
 const route = useRoute();
 const router = useRouter();
-const store = useLogisticsMonitoringStore();
+const api = new BaseApi();
+
+// ID que viene en la URL (ej: /delivery-details/2)
+const urlId = route.params.id;
+
+const isLoading = ref(true);
+const delivery = ref(null);
+const orderItems = ref([]);
 
 const goToChat = (orderId) => {
-  router.push({ 
-    name: 'distributor-chat', 
-    query: { orderId: orderId } 
+  router.push({
+    name: 'distributor-chat',
+    query: { orderId: orderId }
   });
 };
 
-// 🟢 SOLUCIÓN: Agregamos un salvavidas (mock) si el Store no encuentra el pedido.
-const delivery = computed(() => {
-  const id = route.params.id;
-  const storeDelivery = store.deliveries.find(d => d.deliveryId === id || d.orderId === id);
-  
-  // Si lo encuentra en la base de datos, lo retorna. Si no, crea uno de demostración para que la UI no se rompa.
-  if (storeDelivery) return storeDelivery;
-  
-  return {
-    orderId: id, // Usa el ID de la URL dinámicamente (#ORD-2024-003)
-    assignedDriver: 'Carlos Ávila',
-    vehiclePlate: 'ABC-123',
-    status: 'In Transit'
-  };
+onMounted(async () => {
+  await loadDeliveryData();
 });
 
-onMounted(async () => {
-  if (!store.deliveries.length) {
-    await store.fetchDeliveries();
+async function loadDeliveryData() {
+  isLoading.value = true;
+  try {
+    const delRes = await api.http.get('https://fruitlogix-platform.onrender.com/api/v1/deliveries');
+
+    const foundDelivery = delRes.data.find(d => String(d.id) === String(urlId));
+
+    if (!foundDelivery) {
+      alert("No se encontró el despacho solicitado.");
+      router.push({ name: 'logistics-monitoring' });
+      return;
+    }
+
+    delivery.value = {
+      id: foundDelivery.id,
+      orderId: foundDelivery.orderId,
+      assignedDriver: foundDelivery.driverName || 'Sin Conductor',
+      driverPhone: foundDelivery.driverPhone,
+      vehiclePlate: foundDelivery.vehiclePlate || 'Sin Placa',
+      vehicleType: foundDelivery.vehicleType,
+      currentStatus: foundDelivery.currentStatus
+    };
+
+    const orderRes = await api.http.get(`https://fruitlogix-platform.onrender.com/api/v1/orders/${foundDelivery.orderId}`);
+    const orderData = orderRes.data;
+
+    if (orderData && orderData.items && orderData.items.length > 0) {
+      orderItems.value = orderData.items.map(item => ({
+        name: item.productName || 'Fruta Genérica',
+        quantity: `${item.quantityKg || 0} kg`
+      }));
+    } else {
+      // Fallback si la orden no trae detalle de items
+      orderItems.value = [{ name: 'Lote de Fruta', quantity: 'Cantidad no especificada' }];
+    }
+
+  } catch (error) {
+    console.error("Error cargando detalles del delivery:", error);
+    alert("Ocurrió un error al cargar la información.");
+  } finally {
+    isLoading.value = false;
   }
-});
+}
 </script>
 
 <style scoped>

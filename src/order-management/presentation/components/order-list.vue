@@ -89,12 +89,10 @@
           <template #body="{ data }">
             <button
                 class="status-badge"
-                :class="statusClassFor(data.status)"
-                @click="goToOrderDetail({ data })"
-                :title="t('orders.actions.view_tracking')"
-            >
+                :class="statusClassFor(data.id, data.status)"
+                @click="goToOrderDetail({ data })">
               <span class="status-dot"/>
-              {{ data.status }}
+              {{ getDisplayStatus(data.id, data.status) }}
             </button>
           </template>
         </pv-column>
@@ -102,11 +100,14 @@
         <pv-column header="Acciones" headerStyle="text-align: right">
           <template #body="{ data }">
             <div class="row-actions-right">
-              <button class="icon-btn-minimal" @click="goToOrderDetail({ data })" title="Ver detalle">
+              <button class="icon-btn-minimal" @click.stop="goToOrderDetail({ data })" title="Ver detalle">
                 <i class="pi pi-eye"/>
               </button>
-              <button class="icon-btn-minimal" :class="{ disabled: isStatusRestricted(data.status) }" @click="!isStatusRestricted(data.status) && showOrderEdit(data)" title="Editar">
+              <button class="icon-btn-minimal" :class="{ disabled: isStatusRestricted(data.status) }" @click.stop="!isStatusRestricted(data.status) && showOrderEdit(data)" title="Editar">
                 <i class="pi pi-pencil"/>
+              </button>
+              <button class="icon-btn-minimal delete-btn" :class="{ disabled: isStatusRestricted(data.status) }" @click.stop="!isStatusRestricted(data.status) && showDeleteConfirm(data)" title="Eliminar">
+                <i class="pi pi-trash"/>
               </button>
             </div>
           </template>
@@ -242,12 +243,16 @@ const filteredOrders = computed(() => {
 
   if (activeStatusTab.value !== 'Todos') {
     result = result.filter(o => {
-        const s = (o.status || '').toLowerCase();
-        const tab = activeStatusTab.value.toLowerCase();
-        if (tab === 'en preparación' && (s.includes('prepar') || s.includes('asignado'))) return true;
-        if (tab === 'en ruta' && (s.includes('ruta') || s.includes('camino') || s.includes('transit'))) return true;
-        if (tab === 'pendiente' && (s.includes('pend') || s.includes('registrado'))) return true;
-        return s.includes(tab);
+      // 🌟 LEEMOS EL ESTADO REAL
+      const rawStatus = localStorage.getItem(`order_status_${o.id}`) || o.status || '';
+      const s = rawStatus.toLowerCase();
+      const tab = activeStatusTab.value.toLowerCase();
+
+      if (tab === 'en preparación' && (s.includes('prepar') || s.includes('assigned') || s.includes('ready'))) return true;
+      if (tab === 'en ruta' && (s.includes('ruta') || s.includes('transit'))) return true;
+      if (tab === 'pendiente' && (s.includes('pend') || s === 'pending')) return true;
+      if (tab === 'entregado' && (s.includes('deliver') || s.includes('entregado'))) return true;
+      return s.includes(tab);
     });
   }
 
@@ -339,16 +344,22 @@ function goToOrderDetail(event) {
   }
 }
 
-/** Returns the CSS class for a given status string. */
-function statusClassFor(status) {
-  if (!status) return 'status-registered';
-  const s = status.toLowerCase();
-  if (s.includes('entregado')) return 'status-delivered';
-  if (s.includes('retrasado')) return 'status-delayed';
-  if (s.includes('cancelado')) return 'status-cancelled';
-  if (s.includes('asignado')) return 'status-assigned';
-  if (s.includes('registrado') || s === 'pending') return 'status-registered';
-  if (s.includes('camino') || s.includes('transito')) return 'status-transit';
+function getDisplayStatus(id, backendStatus) {
+  const s = (localStorage.getItem(`order_status_${id}`) || backendStatus || '').toUpperCase();
+  if (s === 'PENDING') return 'Pendiente';
+  if (s === 'ASSIGNED' || s === 'IN_PREPARATION') return 'En Preparación';
+  if (s === 'READY') return 'Inspeccionado';
+  if (s === 'IN_TRANSIT') return 'En Ruta';
+  if (s === 'DELIVERED') return 'Entregado';
+  return s;
+}
+
+function statusClassFor(id, backendStatus) {
+  const s = (localStorage.getItem(`order_status_${id}`) || backendStatus || '').toUpperCase();
+  if (s === 'PENDING') return 'status-registered'; // Gris/Amarillo
+  if (s === 'ASSIGNED' || s === 'IN_PREPARATION' || s === 'READY') return 'status-assigned'; // Azul
+  if (s === 'IN_TRANSIT') return 'status-transit'; // Verde Claro
+  if (s === 'DELIVERED') return 'status-delivered'; // Verde Oscuro
   return 'status-registered';
 }
 
@@ -391,9 +402,13 @@ async function handleAssignCancelOrder(order) {
 
 async function confirmDelete() {
   if (!orderToDelete.value) return;
-  await orderStore.deleteOrder(orderToDelete.value.id);
-  isDeleteConfirmVisible.value = false;
-  orderToDelete.value = null;
+  try {
+    await orderStore.hardDeleteOrder(orderToDelete.value.id);
+    isDeleteConfirmVisible.value = false;
+    orderToDelete.value = null;
+  } catch (error) {
+    console.error("Error al intentar eliminar el pedido:", error);
+  }
 }
 
 async function handleOrderSave(orderData) {

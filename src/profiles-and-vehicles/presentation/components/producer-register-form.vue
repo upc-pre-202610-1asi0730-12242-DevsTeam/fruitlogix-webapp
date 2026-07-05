@@ -208,9 +208,8 @@ const store  = useProfilesAndVehiclesStore();
 const isEditing = computed(() => !!route.params.id);
 
 const producerTypes = [
-  { label: 'Persona Natural', value: 'NATURAL' },
-  { label: 'Empresa / SAC',   value: 'EMPRESA' },
-  { label: 'Cooperativa Agrícola', value: 'COOPERATIVA' }
+  { label: 'Persona Natural', value: 'Individual' },
+  { label: 'Empresa / SAC',   value: 'Company' }
 ];
 
 const form = reactive({
@@ -257,14 +256,43 @@ function triggerSubmit() {
 
 async function handleSubmit() {
   if (!validate()) return;
-  if (isEditing.value) {
-    await store.updateProducer(route.params.id, { ...form });
-  } else {
-    await store.addProducer({ ...form });
-  }
-  showSuccess.value = true;
-}
 
+  // 1. Clonamos los datos del formulario para modificarlos antes de enviarlos
+  const payload = { ...form };
+
+  // 2. Formateamos la fecha a YYYY-MM-DD estricto para C# (.NET)
+  if (payload.operationsStartDate) {
+    const d = new Date(payload.operationsStartDate);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+
+    payload.operationsStartDate = `${year}-${month}-${day}`;
+  } else {
+    // Si no seleccionó fecha, mandamos la de hoy por defecto para evitar nulos
+    const hoy = new Date();
+    payload.operationsStartDate = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+  }
+
+  // 3. Limpiamos datos que el Backend no acepta en el POST (según tu Swagger)
+  delete payload.rating;
+
+  // 4. Aseguramos que los strings opcionales no viajen nulos
+  payload.photo = payload.photo || "string";
+  payload.monthlyProduction = String(payload.monthlyProduction || "0");
+
+  try {
+    if (isEditing.value) {
+      await store.updateProducer(route.params.id, payload);
+    } else {
+      await store.addProducer(payload);
+    }
+    showSuccess.value = true;
+  } catch (error) {
+    console.error("Error al enviar el payload a Render:", error);
+    alert("Hubo un problema al guardar el Productor en la Base de Datos. Revisa la consola.");
+  }
+}
 function handleSuccessClose() {
   showSuccess.value = false;
   router.push({ name: 'profiles-and-vehicles-list' });

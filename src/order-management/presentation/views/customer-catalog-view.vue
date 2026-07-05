@@ -14,17 +14,23 @@
         <button class="btn-primary" @click="continueToOrder">{{ t('catalog.continue', 'Continuar') }}</button>
       </div>
     </div>
-    
+
     <div class="filter-chips">
       <button v-for="cat in categories" :key="cat" :class="['filter-chip', { active: selectedCategory === cat }]" @click="selectedCategory = cat">{{ cat }}</button>
     </div>
-    
+
     <div class="products-grid">
       <div v-for="product in filteredProducts" :key="product.id" class="product-card">
+
         <div class="product-image">
-          <span class="product-emoji"><i :class="['pi', product.image]"></i></span>
+          <img
+              :src="productImages[product.name] || defaultImg"
+              :alt="product.name"
+              class="catalog-img"
+          />
           <span v-if="product.seasonal" class="seasonal-badge">🌿 Temporada</span>
         </div>
+
         <div class="product-info">
           <div class="product-category">{{ product.category }}</div>
           <h3 class="product-name">{{ product.name }}</h3>
@@ -71,7 +77,14 @@
         <div class="modal-body">
           <div class="order-items">
             <div v-for="item in cartStore.items" :key="item.product.id" class="order-item">
-              <span class="order-item-emoji"><i :class="['pi', item.product.image]"></i></span>
+
+              <img
+                  :src="getProductImage(item.product.name)"
+                  :alt="item.product.name"
+                  class="modal-mini-img"
+                  @error="handleImgError"
+              />
+
               <div class="order-item-info">
                 <span class="order-item-name">{{ item.product.name }}</span>
                 <span class="order-item-qty">{{ item.quantity }} {{ item.product.unit }}</span>
@@ -112,6 +125,31 @@ import { OrderManagementApi } from '../../infrastructure/order-management-api.js
 import { OrderAssembler } from '../../infrastructure/order.assembler.js'; // Ajusta la ruta si es necesario
 import { PaymentManagementApi } from '../../../payment-management/infrastructure/payment-management-api.js';
 
+// 📸 1. Importamos las imágenes directamente de tus assets por seguridad
+import mangoImg from '../../../assets/mango.jpg';
+import arandanoImg from '../../../assets/morras.jpg';
+import paltaImg from '../../../assets/palta.jpg';
+import uvaImg from '../../../assets/uvaredglobe.jpg';
+import pimientoImg from '../../../assets/primientorojo.jpg';
+import brocoliImg from '../../../assets/brocoli2.jpg';
+import naranjaImg from '../../../assets/naranja.png';
+import mandarinaImg from '../../../assets/mandarina.jpg';
+import esparragosImg from '../../../assets/esparragos.jpg';
+
+const productImages = {
+  'Mango Kent': mangoImg,
+  'Arándanos': arandanoImg,
+  'Palta Hass': paltaImg,
+  'Uva Red Globe': uvaImg,
+  'Pimiento Rojo': pimientoImg,
+  'Brócoli': brocoliImg,
+  'Naranja': naranjaImg,
+  'Mandarina': mandarinaImg,
+  'Espárragos': esparragosImg
+};
+
+// Imagen de respaldo global por si algún producto nuevo de la BD no tiene foto registrada
+const defaultImg = 'https://images.unsplash.com/photo-1610348725531-843dff163e2c?w=400&q=80';
 const { t } = useI18n();
 const cartStore = useCartStore();
 const router = useRouter();
@@ -209,6 +247,26 @@ async function confirmOrder() {
     alert('No se pudo procesar tu pedido. Intenta de nuevo.');
   }
 }
+
+// 🌟 FUNCIÓN MÁGICA: Formatea el nombre y resuelve la ruta real en Vite
+function getProductImage(productName) {
+  if (!productName) return '';
+
+  // Limpiamos el nombre: pasamos a minúsculas, quitamos acentos y cambiamos espacios por guiones bajos
+  const cleanName = productName
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // Remueve tildes y caracteres especiales
+      .replace(/\s+/g, '_');          // Cambia espacios por '_'
+
+  // Retornamos la URL dinámica compatible con el empaquetador de Vite
+  return new URL(`/src/assets/${cleanName}.jpg`, import.meta.url).href;
+}
+
+// 🛡️ ESCUDO: Si olvidaste subir la foto de alguna fruta, pone un marcador por defecto para no romper la app
+function handleImgError(event) {
+  event.target.src = 'https://images.unsplash.com/photo-1610348725531-843dff163e2c?w=400&q=80'; // Foto de verduras general
+}
 </script>
 <style scoped>
 .catalog-page { padding: 32px; padding-bottom: 120px; min-height: 100vh; background: #E1EBE1; }
@@ -231,16 +289,50 @@ async function confirmOrder() {
 .filter-chip:hover:not(.active) { background: rgba(255, 255, 255, 0.1); }
 
 .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
-.product-card { background: #1e2d22; border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 16px; overflow: hidden; transition: all 0.2s; }
+
+/* 🌟 CORREGIDO: Añadido flex para estirar uniformemente todas las tarjetas */
+.product-card {
+  background: #1e2d22;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
 .product-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); border-color: rgba(212, 233, 82, 0.5); }
-.product-image { background: rgba(0, 0, 0, 0.2); height: 120px; display: flex; align-items: center; justify-content: center; position: relative; }
-.product-emoji { font-size: 56px; }
-.seasonal-badge { position: absolute; top: 8px; right: 8px; background: #D4E952; color: #121212; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; }
-.product-info { padding: 16px; display: flex; flex-direction: column; }
+
+/* 🌟 CORREGIDO: Ajustada la altura fija y quitado el centering interno para las fotos reales */
+.product-image {
+  background: rgba(0, 0, 0, 0.2);
+  height: 160px;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 🌟 NUEVO: Control estricto de escalado de la imagen del producto */
+.catalog-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.seasonal-badge { position: absolute; top: 8px; right: 8px; background: #D4E952; color: #121212; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; z-index: 2; }
+
+/* El bloque de textos de abajo recuperará su espacio automáticamente */
+.product-info {
+  padding: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1; /* Ocupa el resto de la tarjeta abajo de la foto */
+}
 .product-category { font-size: 10px; font-weight: 800; letter-spacing: 1px; color: #D4E952; text-transform: uppercase; margin-bottom: 4px; }
 .product-name { font-size: 16px; font-weight: 700; color: #FFFFFF; margin: 0 0 6px 0; }
 .product-desc { font-size: 12px; color: #9ab39d; line-height: 1.5; margin: 0 0 12px 0; min-height: 36px; }
-.product-footer { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; }
+.product-footer { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; margin-top: auto; } /* Auto-margin empuja el footer abajo */
 .product-price { display: flex; align-items: baseline; gap: 2px; }
 .price-amount { font-size: 18px; font-weight: 800; color: #FFFFFF; }
 .price-unit { font-size: 11px; color: #9ab39d; }
@@ -270,7 +362,16 @@ async function confirmOrder() {
 .modal-body { padding: 20px 24px; }
 .order-items { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; max-height: 200px; overflow-y: auto; }
 .order-item { display: flex; align-items: center; gap: 12px; background: rgba(0, 0, 0, 0.2); border-radius: 8px; padding: 10px 14px; border: 1px solid rgba(255, 255, 255, 0.05); }
-.order-item-emoji { font-size: 22px; }
+
+/* 🌟 NUEVO: Soporte de miniaturas fotográficas para el desglose del modal */
+.modal-mini-img {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 .order-item-info { flex: 1; display: flex; flex-direction: column; }
 .order-item-name { font-size: 14px; font-weight: 700; color: #FFFFFF; }
 .order-item-qty { font-size: 12px; color: #9ab39d; }

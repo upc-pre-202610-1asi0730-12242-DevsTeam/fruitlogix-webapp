@@ -31,11 +31,11 @@
       </div>
 
       <div class="order-list">
-        <div v-for="card in visualOrders" 
-             :key="card.id" 
+        <div v-for="card in visualOrders"
+             :key="card.id"
              :class="['order-card', { active: selectedOrderId === card.id }]"
              @click="selectedOrderId = card.id">
-          
+
           <div class="card-header">
             <span class="order-id">#{{ card.id }}</span>
             <span :class="['badge', getStoreStatus(card.id).clazz]">{{ getStoreStatus(card.id).text }}</span>
@@ -139,28 +139,33 @@
                 <div class="timeline-item completed">
                   <div class="timeline-dot"></div>
                   <div class="timeline-content">
-                    <p class="title">Pedido recibido</p>
-                    <p class="time">1 jun 10:00 <i class="pi pi-check" style="font-size: 0.7rem;"></i></p>
+                    <p class="title">Pedido recibido por Distribuidor</p>
+                    <p class="time"><i class="pi pi-check" style="font-size: 0.7rem;"></i></p>
                   </div>
                 </div>
+
                 <div class="timeline-item completed">
                   <div class="timeline-dot"></div>
                   <div class="timeline-content">
-                    <p class="title">Asignado al productor</p>
-                    <p class="time">1 jun 11:30 <i class="pi pi-check" style="font-size: 0.7rem;"></i></p>
+                    <p class="title">Asignado a ti</p>
+                    <p class="time"><i class="pi pi-check" style="font-size: 0.7rem;"></i></p>
                   </div>
                 </div>
-                <div :class="['timeline-item', selectedOrder.rawStatus !== 'PENDING' && selectedOrder.rawStatus !== 'ASSIGNED' && selectedOrder.rawStatus !== 'Pendiente' ? 'completed' : 'pending']">
+
+                <div :class="['timeline-item', selectedOrder.rawStatus !== 'IN_PREPARATION' ? 'completed' : 'pending']">
                   <div class="timeline-dot"></div>
                   <div class="timeline-content">
-                    <p class="title">En preparación</p>
-                    <p class="time" v-if="selectedOrder.rawStatus !== 'PENDING' && selectedOrder.rawStatus !== 'ASSIGNED' && selectedOrder.rawStatus !== 'Pendiente'">En progreso</p>
+                    <p class="title">Control de Calidad</p>
+                    <p class="time" v-if="selectedOrder.rawStatus === 'IN_PREPARATION'">Pendiente de reporte</p>
+                    <p class="time" v-else><i class="pi pi-check" style="font-size: 0.7rem;"></i> Óptimo</p>
                   </div>
                 </div>
-                <div :class="['timeline-item', selectedOrder.rawStatus === 'READY' || selectedOrder.rawStatus === 'Listo Despacho' ? 'completed' : 'pending']">
+
+                <div :class="['timeline-item', selectedOrder.rawStatus === 'IN_TRANSIT' ? 'completed' : 'pending']">
                   <div class="timeline-dot"></div>
                   <div class="timeline-content">
-                    <p class="title">Listo para despacho</p>
+                    <p class="title">Despachado en Camión</p>
+                    <p class="time" v-if="selectedOrder.rawStatus === 'IN_TRANSIT'"><i class="pi pi-truck" style="font-size: 0.7rem;"></i> En Ruta</p>
                   </div>
                 </div>
               </div>
@@ -180,13 +185,13 @@
                   <span class="sender">{{ msg.sender }}</span>
                   <p>{{ msg.text }}</p>
                 </div>
-                
+
                 <div class="chat-input-area">
-                  <input 
-                    type="text" 
-                    v-model="newMessage" 
-                    @keyup.enter="sendMessage" 
-                    placeholder="Escribe un mensaje..." 
+                  <input
+                    type="text"
+                    v-model="newMessage"
+                    @keyup.enter="sendMessage"
+                    placeholder="Escribe un mensaje..."
                   />
                   <button class="send-btn" @click="sendMessage">
                     <i class="pi pi-send"></i>
@@ -208,7 +213,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useOrderManagementStore } from '../../application/order-management.store.js';
 import { OrderManagementApi } from '../../infrastructure/order-management-api.js';
@@ -225,14 +230,29 @@ const activeConversationId = ref(null);
 const visualOrders = ref([]);
 
 const PRODUCER_ID = 3;
+const DEFAULT_DISTRIBUTOR_ID = 1;
 
 async function loadConversationForOrder(orderId) {
   try {
     const res = await chatApi.getConversations(PRODUCER_ID);
-    const match = res.data.find(c => String(c.orderId) === String(orderId));
+
+    let match = res.data.find(c => String(c.orderId) === String(orderId));
+
+    if (!match) {
+      console.log(`No hay chat para la Orden ${orderId}. Creando nuevo...`);
+      const newChatRes = await chatApi.createConversation({
+        orderId: parseInt(orderId),
+        participantAId: PRODUCER_ID,
+        participantBId: DEFAULT_DISTRIBUTOR_ID
+      });
+      match = newChatRes.data;
+    }
+
     if (match) {
       activeConversationId.value = match.id;
+
       const msgsRes = await chatApi.getMessages(match.id);
+
       const order = visualOrders.value.find(o => o.id === String(orderId));
       if (order) {
         order.chat = msgsRes.data.map(m => ({
@@ -243,7 +263,7 @@ async function loadConversationForOrder(orderId) {
       }
     }
   } catch (e) {
-    console.error('Error cargando chat del mini-chat:', e);
+    console.error('Error cargando/creando chat del mini-chat:', e);
   }
 }
 
@@ -270,24 +290,31 @@ async function sendMessage() {
 onMounted(async () => {
   try {
     await orderStore.fetchOrders();
-
     const response = await orderManagementApi.getOrdersByProducer(1);
     const realOrders = response.data;
 
-    visualOrders.value = realOrders.map(order => ({
-      id: String(order.id),
-      client: `Cliente #${order.commercialClientId}`,
-      productsDesc: order.items.map(i => `${i.productName} — ${i.quantityKg} kg`).join(' • '),
-      date: order.deliveryDueDate,
-      totalQty: `${order.items.reduce((s, i) => s + i.quantityKg, 0)} kg`,
-      productsList: order.items.map(i => i.productName).join(', '),
-      totalAmount: order.totalAmount,
-      status: order.status,
-      lotes: [],
-      chat: [],
-      rawStatus: order.status,
-      realStoreId: order.id
-    }));
+    visualOrders.value = realOrders.map(order => {
+      // 👇 LEEMOS SI EL NAVEGADOR TIENE UN ESTADO MÁS ACTUALIZADO 👇
+      const localStatus = localStorage.getItem(`order_status_${order.id}`);
+
+      return {
+        id: String(order.id),
+        client: `Cliente #${order.commercialClientId}`,
+        productsDesc: order.items.map(i => `${i.productName} — ${i.quantityKg} kg`).join(' • '),
+        date: order.deliveryDueDate,
+        totalQty: `${order.items.reduce((s, i) => s + i.quantityKg, 0)} kg`,
+        productsList: order.items.map(i => i.productName).join(', '),
+        totalAmount: order.totalAmount,
+
+        // 🌟 CAMBIAMOS ESTA LÍNEA: Usa el estado local si existe, sino el del backend
+        rawStatus: localStatus || order.status,
+
+        status: order.status,
+        lotes: [],
+        chat: [],
+        realStoreId: order.id
+      };
+    });
 
     if (visualOrders.value.length > 0) {
       selectedOrderId.value = visualOrders.value[0].id;
@@ -298,32 +325,50 @@ onMounted(async () => {
   }
 });
 
+watch(selectedOrderId, async (newOrderId) => {
+  if (newOrderId) {
+    await loadConversationForOrder(newOrderId);
+  }
+});
+
+// La máquina de estados oficial para el Productor corregida
 const getStoreStatus = (id) => {
-  const storeOrder = orderStore.getOrderById(id);
-  if (!storeOrder) return { text: 'Pendiente Preparación', clazz: 'badge-warning' };
-  if (storeOrder.status === 'ASSIGNED' || storeOrder.status === 'Pending') return { text: 'Pendiente Preparación', clazz: 'badge-warning' };
-  if (storeOrder.status === 'IN_PREPARATION') return { text: 'En Preparación', clazz: 'badge-blue' };
-  if (storeOrder.status === 'READY') return { text: 'Listo Despacho', clazz: 'badge-green' };
-  return { text: storeOrder.status, clazz: 'badge-light-green' };
+  // Buscamos el pedido en la lista para saber su estado real
+  const order = visualOrders.value.find(o => o.id === id);
+  const rawStatus = order ? order.rawStatus : '';
+  const s = String(rawStatus || '').toUpperCase().trim();
+
+  // 1. Recién asignado o en preparación
+  if (s.includes('PREPAR') || s === 'ASSIGNED' || s.includes('PEND')) {
+    return { text: 'Control Pendiente', clazz: 'badge-warning', btnText: 'Hacer Revisión de Calidad' };
+  }
+
+  // 2. Ya hizo el control de calidad
+  if (s === 'READY' || s.includes('LISTO')) {
+    return { text: 'Inspeccionado', clazz: 'badge-blue', btnText: 'Despachar al Camión' };
+  }
+
+  // 3. Ya lo mandó por el camión
+  if (s.includes('TRANSIT') || s.includes('CAMINO') || s.includes('RUTA')) {
+    return { text: 'En Tránsito', clazz: 'badge-light-green', btnText: 'En Camino' };
+  }
+
+  // Fallback si llega otro estado raro del backend
+  return { text: rawStatus || 'Pendiente', clazz: 'badge-warning', btnText: 'Hacer Revisión de Calidad' };
 };
 
 const selectedOrder = computed(() => {
   const spec = visualOrders.value.find(o => o.id === selectedOrderId.value);
   if (!spec) return null;
 
-  const storeOrder = orderStore.getOrderById(selectedOrderId.value) || { status: 'ASSIGNED' };
-  const statusMeta = getStoreStatus(selectedOrderId.value);
-
-  let btnText = 'Marcar Como En Preparación';
-  if (storeOrder.status === 'IN_PREPARATION') btnText = 'Marcar Como Listo para Despacho';
-  else if (storeOrder.status === 'READY') btnText = 'Pedido Terminado';
+  // IMPORTANTE: Ahora le pasamos el ID, como espera el HTML
+  const statusMeta = getStoreStatus(spec.id);
 
   return {
     ...spec,
     status: statusMeta.text,
     badgeClass: statusMeta.clazz,
-    btnText,
-    rawStatus: storeOrder.status,
+    btnText: statusMeta.btnText,
     realStoreId: selectedOrderId.value
   };
 });
@@ -343,24 +388,36 @@ const goToFullDetail = () => {
 const handleActionClick = () => {
   if (!selectedOrder.value) return;
 
-  const currentStatus = selectedOrder.value.rawStatus;
+  const currentStatus = String(selectedOrder.value.rawStatus).toUpperCase().trim();
   const targetId = selectedOrder.value.realStoreId;
 
-  const isPending = ['ASSIGNED', 'Pending', 'PENDING', 'InPreparation'].includes(currentStatus);
-  const isPreparing = ['IN_PREPARATION', 'InPreparation'].includes(currentStatus);
-
-  if (isPending || isPreparing) {
-    if (isPending) orderStore.simulateProducerUpdateStatus(targetId, 'En Preparación', 'status-processing');
+  // 1. ESTADO PENDIENTE: Te lleva a inspeccionar
+  if (currentStatus.includes('PREPAR') || currentStatus === 'ASSIGNED' || currentStatus.includes('PEND')) {
     router.push({
-      name: 'producer-inspecciones',
+      name: 'producer-inspecciones', // Asegúrate de que esta ruta existe en router.js
       query: {
         orderId: targetId,
-        product: selectedOrder.value.productsList || 'Mango Kent',
-        quantity: selectedOrder.value.totalQty || '1 kg'
+        product: selectedOrder.value.productsList || 'Mix de Frutas',
+        quantity: selectedOrder.value.totalQty || '0 kg'
       }
-    }).catch(err => console.error('Error de Vue Router:', err));
-  } else {
-    alert(`Estado no manejado: ${currentStatus}`);
+    });
+  }
+  // 2. ESTADO INSPECCIONADO: Lo despacha al camión
+  else if (currentStatus === 'READY' || currentStatus.includes('LISTO')) {
+    alert("¡Camión despachado! El GPS está activado.");
+
+    // Guardamos en el navegador que ya salió el camión
+    localStorage.setItem(`order_status_${targetId}`, 'IN_TRANSIT');
+
+    // Actualizamos la vista inmediatamente sin recargar
+    const orderIndex = visualOrders.value.findIndex(o => o.realStoreId === targetId);
+    if (orderIndex !== -1) {
+      visualOrders.value[orderIndex].rawStatus = 'IN_TRANSIT';
+    }
+  }
+  // 3. ESTADO EN TRÁNSITO
+  else {
+    alert("El pedido ya está en camino o finalizado. Revisa el GPS.");
   }
 };
 </script>

@@ -1,9 +1,9 @@
 <template>
   <div class="chat-page">
-    <AppHeader title="Centro de Mensajes" subtitle="Comunícate con tus productores y flota en tiempo real" />
+    <AppHeader title="Centro de Mensajes" subtitle="Comunícate con tus productores en tiempo real" />
     <div class="chat-layout">
-      <ChatList :conversations="conversations" :active-id="activeId" @select="activeId=$event" />
-      <ChatWindow :messages="currentMessages" :order-id="activeId" @send="sendMsg" />
+      <ChatList :conversations="conversations" :active-id="activeConversationId" @select="activeConversationId = $event" />
+      <ChatWindow :messages="currentMessages" :order-id="activeOrderId" @send="sendMsg" />
     </div>
   </div>
 </template>
@@ -19,7 +19,8 @@ import { ChatApi } from '../../infrastructure/chat-api.js';
 const route = useRoute();
 const chatApi = new ChatApi();
 
-const DISTRIBUTOR_ID = 2;
+// 🌟 FIX: Ahora el Distribuidor es el ID 1, para que coincida con el Productor
+const DISTRIBUTOR_ID = 1;
 
 const activeConversationId = ref(null);
 const conversations = ref([]);
@@ -31,12 +32,12 @@ onMounted(async () => {
     conversations.value = res.data.map(c => ({
       id: c.id,
       orderId: c.orderId,
+      name: `Pedido #${c.orderId}`,
       preview: 'Ver mensajes...',
       time: c.createdAt ? new Date(c.createdAt).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) : '',
       unread: 0
     }));
 
-    // Si venimos desde otra pantalla con orderId en query, seleccionar esa conversación
     if (route.query.orderId) {
       const match = conversations.value.find(c => String(c.orderId) === String(route.query.orderId));
       if (match) activeConversationId.value = match.id;
@@ -56,7 +57,7 @@ watch(activeConversationId, async (id) => {
     const res = await chatApi.getMessages(id);
     allMessages.value[id] = res.data.map(m => ({
       id: m.id,
-      from: m.senderId === DISTRIBUTOR_ID ? 'me' : 'dist',
+      from: m.senderId === DISTRIBUTOR_ID ? 'me' : 'dist', // 'dist' acá significa el otro lado (Productor)
       text: m.content,
       time: new Date(m.sentAt).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
     }));

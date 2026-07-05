@@ -58,6 +58,25 @@
         <div class="header-actions">
           <language-switcher />
 
+          <button
+              v-if="!isProUser"
+              @click="handleUpgrade"
+              class="upgrade-pro-btn"
+              title="Mejorar plan a Pro"
+          >
+            <i class="pi pi-star-fill"></i>
+            <span class="pro-text">Upgrade to Pro</span>
+          </button>
+
+          <div
+              v-else
+              class="is-pro-badge"
+              title="Tienes acceso a todos los beneficios"
+          >
+            <i class="pi pi-crown"></i>
+            <span class="pro-text">Miembro Pro</span>
+          </div>
+
           <div class="action-icons">
             <i class="pi pi-bell icon-btn" />
             <i class="pi pi-cog icon-btn" />
@@ -86,6 +105,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import LanguageSwitcher from './language-switcher.vue';
 import { useAuthStore } from '../../../iam/application/auth.store.js';
+import { onMounted } from 'vue';
 
 const route  = useRoute();
 const router = useRouter();
@@ -93,25 +113,25 @@ const { t }  = useI18n();
 const sidebarVisible = ref(false);
 const isCollapsed = ref(true);
 const authStore = useAuthStore();
+const isProUser = ref(false);
 
-// 1. Menú Distribuidor (Usa paths i18n)
+// 1. Menú Distribuidor (Usa paths i18n perfectamente emparejados)
 const distributorMenu = [
-  { id: 'dashboard',              label: 'pages.dashboard',           icon: 'pi-th-large',       sidebarLabel: 'nav.dashboard',    path: '/dashboard' },
+  { id: 'dashboard',              label: 'nav.dashboard',             icon: 'pi-th-large',       sidebarLabel: 'nav.dashboard',    path: '/dashboard' },
   { id: 'order-management',       label: 'pages.order-management',    icon: 'pi-shopping-cart',  sidebarLabel: 'nav.orders',       path: '/order-management/orders' },
-  { id: 'profiles-and-vehicles',  label: 'pages.profiles-and-vehicles', icon: 'pi-users',          sidebarLabel: 'nav.profiles',     path: '/profiles-and-vehicles' },
+  { id: 'profiles-and-vehicles',  label: 'pages.profiles-and-vehicles', icon: 'pi-users',         sidebarLabel: 'nav.profiles',     path: '/profiles-and-vehicles' }, // 🌟 CORREGIDO: De texto plano a llave i18n
   { id: 'logistics-monitoring',   label: 'pages.logistics-monitoring',  icon: 'pi-truck',          sidebarLabel: 'nav.logistics',    path: '/logistics-monitoring' },
   { id: 'payment-management',     label: 'pages.payment-management',  icon: 'pi-dollar',         sidebarLabel: 'nav.payments',     path: '/payment-management' },
   { id: 'iot-infrastructure',     label: 'pages.iot-infrastructure',  icon: 'pi-wifi',           sidebarLabel: 'nav.iot',          path: '/iot-infrastructure' },
-  { id: 'distributor-chat',                   label: 'pages.chat',                icon: 'pi-comments',       sidebarLabel: 'nav.messages',     path: '/chat' }
+  { id: 'distributor-chat',       label: 'nav.messages',              icon: 'pi-comments',       sidebarLabel: 'nav.messages',     path: '/chat' } // 🌟 CORREGIDO: De 'pages.chat' a 'nav.messages'
 ];
 
 // 2. Nuevo Menú Productor — Corregido para usar las nuevas llaves del i18n JSON
 const producerMenu = [
+  { id: 'producer-dashboard',   label: 'nav.dashboard',            icon: 'pi-th-large',        sidebarLabel: 'nav.dashboard',         path: '/producer/dashboard' },
   { id: 'producer-orders',      label: 'nav.producer_orders',      icon: 'pi-shopping-cart',   sidebarLabel: 'nav.producer_orders',   path: '/producer/mis-pedidos' },
-  { id: 'producer-lots',        label: 'nav.producer_lots',        icon: 'pi-truck',           sidebarLabel: 'nav.producer_lots',     path: '/producer/mis-lotes' },
-  { id: 'producer-inspections', label: 'nav.producer_inspections', icon: 'pi-list',            sidebarLabel: 'nav.producer_inspections', path: '/producer/inspecciones' },
   { id: 'producer-report',      label: 'nav.producer_report',      icon: 'pi-exclamation-triangle', sidebarLabel: 'nav.producer_report', path: '/producer/reportar-calidad' },
-  { id: 'producer-stock',       label: 'nav.producer_stock',       icon: 'pi-box',             sidebarLabel: 'nav.producer_stock',    path: '/producer/stock' },
+  { id: 'producer-stock',       label: 'nav.producer_stock',       icon: 'pi-box',             sidebarLabel: 'nav.producer_stock',    path: '/producer/stock' }, // Lo dejamos como mock visual
   { id: 'producer-chat',        label: 'nav.producer_chat',        icon: 'pi-comments',        sidebarLabel: 'nav.producer_chat',     path: '/producer/chat' }
 ];
 
@@ -120,9 +140,7 @@ const customerMenu = [
   { id: 'customer-dashboard',    label: 'dashboard.title',        icon: 'pi-th-large',     sidebarLabel: 'nav.dashboard',    path: '/customer/dashboard' },
   { id: 'customer-catalog',      label: 'catalog.title',          icon: 'pi-shopping-bag', sidebarLabel: 'nav.catalog',      path: '/customer/catalog' },
   { id: 'customer-orders',       label: 'orders.title',           icon: 'pi-shopping-cart',sidebarLabel: 'nav.orders',       path: '/customer/orders' },
-  { id: 'customer-tracking',     label: 'track.title',            icon: 'pi-map-marker',   sidebarLabel: 'nav.tracking',     path: '/customer/tracking' },
   { id: 'customer-payments',     label: 'pay.title',              icon: 'pi-credit-card',  sidebarLabel: 'nav.payments',     path: '/customer/payments' },
-  { id: 'customer-reception',    label: 'reception.title',        icon: 'pi-check-square', sidebarLabel: 'nav.reception',    path: '/customer/reception' },
   { id: 'customer-chat',         label: 'chat.title',             icon: 'pi-comments',     sidebarLabel: 'nav.chat',         path: '/customer/chat' }
 ];
 
@@ -142,12 +160,16 @@ const currentRoleKey = computed(() => {
   return 'app.role.distributor';
 });
 
+const handleUpgrade = () => {
+  // 🚀 Redirección real a tu pasarela de Stripe
+  router.push('/checkout?type=subscription&amount=29.00&currency=usd');
+};
 const handleLogout = () => {
-    authStore.logout(); 
-    router.push('/login'); 
+    authStore.logout();
+    localStorage.removeItem('isProUser');
+    router.push('/login');
 };
 
-// Determina el elemento de menú actualmente seleccionado de forma segura
 const activeMenuItem = computed(() => {
   const currentSet = activeMenuSet.value;
   return currentSet.find(m => route.path.startsWith(m.path)) ?? currentSet[0];
@@ -157,6 +179,11 @@ const handleNav = (item) => {
   router.push(item.path);
   sidebarVisible.value = false;
 };
+
+onMounted(() => {
+  isProUser.value = localStorage.getItem('isProUser') === 'true';
+});
+
 </script>
 
 <style scoped>
@@ -522,5 +549,69 @@ const handleNav = (item) => {
     width: 100%;
     justify-content: space-between;
   }
+}
+
+/* Estilos para el botón Upgrade to Pro */
+.upgrade-pro-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 10px 18px;
+
+  background: #D7EC6E;
+  color: #1A3020;
+
+  border: none;
+  border-radius: 999px;
+
+  font-size: .9rem;
+  font-weight: 700;
+
+  cursor: pointer;
+  transition: .25s ease;
+
+  box-shadow: 0 8px 18px rgba(215,236,110,.25);
+}
+.upgrade-pro-btn:hover {
+  background: #E4F58B;
+  transform: translateY(-2px);
+
+  box-shadow: 0 12px 24px rgba(215,236,110,.4);
+}
+
+.upgrade-pro-btn i{
+  font-size:1rem;
+}
+/* Ocultar texto en móviles para no romper el layout */
+@media (max-width: 768px) {
+  .pro-text {
+    display: none;
+  }
+  .upgrade-pro-btn {
+    padding: 8px;
+    border-radius: 50%;
+  }
+}
+
+/* Badge para usuario Pro (No es clickeable) */
+.is-pro-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #d4af37 0%, #aa8410 100%); /* Dorado elegante */
+  color: #1a3020;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 900;
+  font-size: 0.85rem;
+  margin: 0 10px;
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
+  cursor: default;
+}
+.is-pro-badge i { font-size: 1rem; }
+
+@media (max-width: 768px) {
+  .is-pro-badge { padding: 8px; border-radius: 50%; }
 }
 </style>
