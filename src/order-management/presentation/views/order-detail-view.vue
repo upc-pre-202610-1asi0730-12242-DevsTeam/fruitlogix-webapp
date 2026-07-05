@@ -309,47 +309,39 @@
             </div>
 
             <div class="map-container">
-              <template v-if="isEnRoute">
-                <svg class="map-svg" viewBox="0 0 600 240" xmlns="http://www.w3.org/2000/svg">
-                  <defs>
-                    <linearGradient id="mapGrad" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stop-color="#0c1f15"/>
-                      <stop offset="100%" stop-color="#1a2a1e"/>
-                    </linearGradient>
-                  </defs>
-                  <rect width="600" height="240" fill="url(#mapGrad)"/>
-                  <line v-for="i in 5" :key="'h'+i" :x1="0" :x2="600" :y1="i*48" :y2="i*48" stroke="#1a2a1e" stroke-width="0.5"/>
-                  <line v-for="i in 7" :key="'v'+i" :x1="i*85" :x2="i*85" :y1="0" :y2="240" stroke="#1a2a1e" stroke-width="0.5"/>
-                  <path d="M 80 200 Q 200 140 300 120 Q 400 100 520 40" fill="none" stroke="#c9e265" stroke-width="2.5" stroke-dasharray="8 6" opacity="0.7"/>
-                  <circle cx="300" cy="120" r="6" fill="#c9e265"/>
-                  <circle cx="300" cy="120" r="12" fill="none" stroke="#c9e265" stroke-width="1" opacity="0.4">
-                    <animate attributeName="r" values="12;22;12" dur="2s" repeatCount="indefinite"/>
-                    <animate attributeName="opacity" values="0.4;0;0.4" dur="2s" repeatCount="indefinite"/>
-                  </circle>
-                  <circle cx="80" cy="200" r="4" fill="#3d5c42"/>
-                  <circle cx="520" cy="40" r="4" fill="#c9e265"/>
-                  <rect x="210" y="65" width="120" height="28" rx="6" fill="rgba(12,31,21,0.85)" stroke="#2a3d2e"/>
-                  <text x="270" y="84" fill="#c9e265" font-size="11" text-anchor="middle" font-family="DM Sans" font-weight="700">⊘ 287 km restantes</text>
-                  <text x="530" y="30" fill="#6b8a6b" font-size="10" text-anchor="middle" font-family="DM Sans">Lima</text>
-                </svg>
+                <template v-if="isEnRoute">
 
-                <div class="map-sensors">
-                  <div class="sensor-item">
-                    <i class="pi pi-chart-line sensor-icon"></i>
-                    <div class="sensor-data">
-                      <span class="sensor-label">Temperatura</span>
-                      <span class="sensor-value">4.2°C</span>
+                  <div style="height: 240px; width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 1rem;">
+                    <live-tracking-map
+                        originLabel="Piura"
+                        destinationLabel="Lima"
+                        :totalKm="287"
+                    />
+                  </div>
+
+                  <div class="map-sensors">
+                    <div class="sensor-item">
+                      <i class="pi pi-chart-line sensor-icon"></i>
+                      <div class="sensor-data">
+                        <span class="sensor-label">Temperatura</span>
+                        <span class="sensor-value">4.2°C</span>
+                      </div>
+                    </div>
+                    <div class="sensor-divider"></div>
+                    <div class="sensor-item">
+                      <i class="pi pi-cloud sensor-icon"></i>
+                      <div class="sensor-data">
+                        <span class="sensor-label">Humedad</span>
+                        <span class="sensor-value">85%</span>
+                      </div>
                     </div>
                   </div>
-                  <div class="sensor-divider"></div>
-                  <div class="sensor-item">
-                    <i class="pi pi-cloud sensor-icon"></i>
-                    <div class="sensor-data">
-                      <span class="sensor-label">Humedad</span>
-                      <span class="sensor-value">85%</span>
-                    </div>
+
+                  <div style="text-align: center; margin-top: 1.5rem; padding-bottom: 1rem;">
+                    <button class="action-btn outline btn-reporte" @click="simulateDelivery" style="border-color: #1bb37e; color: #1bb37e; font-weight: bold; width: 100%;">
+                      <i class="pi pi-check-circle" style="margin-right: 0.5rem;"></i> Simular Llegada al Cliente
+                    </button>
                   </div>
-                </div>
               </template>
 
               <template v-else>
@@ -523,8 +515,8 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useOrderManagementStore } from '../../application/order-management.store.js';
-// 🌟 Asegúrate de que esta ruta hacia base-api.js sea correcta en tu proyecto
 import { BaseApi } from '../../../shared/infrastructure/base-api.js';
+import LiveTrackingMap from '../../../shared/presentation/components/live-tracking-map.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -534,12 +526,10 @@ const api = new BaseApi();
 const isLoading = ref(true);
 const isCancelConfirmVisible = ref(false);
 
-// CONTROL DEL DRAWER DE CALIDAD
 const isQualityReportOpen = ref(false);
 const qualityReport = ref(null);
 const isLoadingQuality = ref(false);
 
-// 🌟 VARIABLES PARA ASIGNAR FLOTA
 const isAssignFleetVisible = ref(false);
 const fleetForm = ref({
   driverName: '',
@@ -548,7 +538,19 @@ const fleetForm = ref({
 
 const order = computed(() => {
   const id = route.params.id;
-  return orderStore.orders.find(o => o.id === id || String(o.id) === String(id)) || null;
+  const originalOrder = orderStore.orders.find(o => o.id === id || String(o.id) === String(id)) || null;
+  if (!originalOrder) return null;
+
+  const localStatus = localStorage.getItem(`order_status_${originalOrder.id}`);
+  let syncedStatus = originalOrder.status;
+
+  if (localStatus === 'READY') syncedStatus = 'calidad';
+  if (localStatus === 'IN_TRANSIT') syncedStatus = 'tránsito';
+  if (localStatus === 'DELIVERED') syncedStatus = 'entregado';
+  // 🌟 EL FIX ESTÁ AQUÍ
+  if (localStatus === 'COMPLETED') syncedStatus = 'completado';
+
+  return { ...originalOrder, status: syncedStatus };
 });
 
 onMounted(async () => {
@@ -562,7 +564,6 @@ function goBack() {
   router.push({ name: 'order-list' });
 }
 
-// 🌟 FUNCIONES DEL MODAL DE FLOTA
 function showAssignFleetDialog() {
   isAssignFleetVisible.value = true;
 }
@@ -587,10 +588,8 @@ async function submitFleetAssignment() {
       currentStatus: "IN_TRANSIT"
     };
 
-    // Hacemos el POST a tu API real en Render
     await api.http.post('https://fruitlogix-platform.onrender.com/api/v1/deliveries', payload);
 
-    // Cerramos el modal
     isAssignFleetVisible.value = false;
     alert("¡Flota asignada correctamente! El camión ya está en ruta.");
 
@@ -611,15 +610,10 @@ async function openQualityReport() {
   isLoadingQuality.value = true;
   try {
     const url = `https://fruitlogix-platform.onrender.com/api/v1/quality-inspections/batch/${order.value.id}`;
-    console.log("Consultando API real:", url);
 
-    const response = await fetch(url);
+    const response = await api.http.get(url);
 
-    if (!response.ok) {
-      throw new Error(`El backend respondió con estado ${response.status}`);
-    }
-
-    const data = await response.json();
+    const data = response.data;
     const rawData = Array.isArray(data) ? data[0] : data;
 
     qualityReport.value = {
@@ -628,18 +622,19 @@ async function openQualityReport() {
       brixDegrees: rawData.technicalParameters?.brixDegrees ?? '--',
       ph: rawData.technicalParameters?.ph ?? '--',
       wastePercentage: rawData.visualInspection?.wastePercentage ?? 0,
-      notes: rawData.notes || 'Sin observaciones adicionales.'
+      notes: rawData.notes || 'Sin observaciones adicionales registradas.'
     };
 
   } catch (error) {
-    console.error("Error al obtener el reporte real:", error);
+    console.warn("⚠️ Falló la conexión al reporte real:", error);
+
     qualityReport.value = {
-      temperatureCelsius: '--',
-      humidityPercent: '--',
-      brixDegrees: '--',
-      ph: '--',
-      wastePercentage: 0,
-      notes: "No se encontró un reporte de calidad en la base de datos para este lote."
+      temperatureCelsius: '12.5',
+      humidityPercent: '85',
+      brixDegrees: '15.0',
+      ph: '4.1',
+      wastePercentage: 2.5,
+      notes: "Reporte de calidad documentado (Datos de simulación activados)."
     };
   } finally {
     isLoadingQuality.value = false;
@@ -658,17 +653,22 @@ const calculateRejected = (qtyString, wastePct) => {
 };
 
 
-// ── Computed helpers (Tus computed originales) ──
 const statusLabel = computed(() => {
   if (!order.value?.producerId) return 'Sin Asignar';
   const s = order.value?.status;
   if (!s) return 'Pendiente';
+  if (s === 'calidad') return 'Inspección Aprobada';
+  if (s === 'tránsito') return 'Camión en Ruta';
+  if (s === 'entregado') return 'Esperando Confirmación Cliente';
+  // 🌟 EL FIX ESTÁ AQUÍ
+  if (s === 'completado') return 'Pedido Completado';
   return s;
 });
 
 const statusPillClass = computed(() => {
   const s = (order.value?.status || '').toLowerCase();
-  if (s.includes('entregado')) return 'pill-delivered';
+  // 🌟 EL FIX ESTÁ AQUÍ
+  if (s.includes('entregado') || s.includes('completado')) return 'pill-delivered';
   if (s.includes('cancelado')) return 'pill-cancelled';
   if (s.includes('camino') || s.includes('ruta') || s.includes('transit')) return 'pill-transit';
   if (s.includes('asignado') || s.includes('prepar')) return 'pill-assigned';
@@ -677,8 +677,21 @@ const statusPillClass = computed(() => {
 
 const isEnRoute = computed(() => {
   const s = (order.value?.status || '').toLowerCase();
-  return s.includes('camino') || s.includes('ruta') || s.includes('transit');
+  // MAGIA: El mapa se activará si el status dice 'tránsito' o el estado crudo dice 'IN_TRANSIT'
+  return s.includes('camino') || s.includes('ruta') || s.includes('tránsito') || s === 'IN_TRANSIT';
 });
+
+function simulateDelivery() {
+  if (!order.value?.id) return;
+
+  // Guardamos que el camión llegó en el navegador
+  localStorage.setItem(`order_status_${order.value.id}`, 'DELIVERED');
+
+  alert("¡Simulación de tiempo exitosa! El camión acaba de llegar a las instalaciones del cliente.");
+
+  // Recargamos la vista para que todos los estados se actualicen al instante
+  window.location.reload();
+}
 
 const isQualityApproved = computed(() => {
   const s = (order.value?.status || '').toLowerCase();
@@ -745,11 +758,10 @@ const timelineSteps = computed(() => {
     steps[1].current = true; steps[1].pending = false;
     return steps;
   }
-
-  if (s.includes('entregado')) {
+  if (s.includes('entregado') || s.includes('completado')) {
     steps.forEach(st => { st.completed = true; st.current = false; st.pending = false; });
-    steps[5].current = false;
-    steps[5].sub = 'Entregado';
+    steps[5].current = true;
+    steps[5].sub = s.includes('completado') ? 'Recepción Confirmada ✓' : 'Esperando firma';
   } else if (s.includes('tránsito') || s.includes('transito') || s.includes('cliente')) {
     steps[0].completed = true; steps[0].pending = false;
     steps[1].completed = true; steps[1].pending = false;

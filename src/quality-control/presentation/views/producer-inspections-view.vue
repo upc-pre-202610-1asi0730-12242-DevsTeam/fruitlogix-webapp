@@ -248,6 +248,7 @@
     </div>
   </div>
 </template>
+
 <script setup>
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -316,20 +317,20 @@ const submitQualityReport = async () => {
   };
 
   try {
-    // 1. Guardamos el reporte en la base de datos (Esto funciona)
+    // Guardamos el reporte (Si tu API funciona)
     await qualityApi.createQualityInspection(payload);
 
-    // 2. Forzamos la actualización en el Store de la otra pantalla
-    orderStore.simulateProducerUpdateStatus(
-        currentOrderId.value,
-        'Listo Despacho',
-        'status-ready'
-    );
+    // DEBEMOS ACTUALIZAR EL ESTADO DEL PEDIDO A 'READY' PARA QUE APAREZCA EL BOTON DE DESPACHO
+    // NOTA: Usa tu API de pedidos real si la tienes, o usa el store simulado por ahora
+    // await orderManagementApi.updateOrderStatus(currentOrderId.value, 'READY');
 
-    alert("¡Reporte de calidad enviado con éxito!");
+    // Simulando el guardado para el MVP (si no tienes el PUT del backend)
+    orderStore.simulateProducerUpdateStatus(currentOrderId.value, 'READY', 'status-ready');
 
-    // 3. En vez de back(), hacemos push directo a la vista de pedidos
-    router.push({ name: 'producer-mis-pedidos' }); // Asegúrate que este nombre es el correcto en tu router.js
+    localStorage.setItem(`order_status_${currentOrderId.value}`, 'READY');
+
+    alert("¡Reporte de calidad enviado! El lote está listo para despacho.");
+    router.push({ name: 'producer-mis-pedidos' });
 
   } catch (error) {
     console.error("Error al enviar el reporte:", error);

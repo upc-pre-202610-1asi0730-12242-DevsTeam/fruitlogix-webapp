@@ -34,7 +34,7 @@
   "pages": {
     "dashboard": "Dashboard",
     "order-management": "Gestión de Pedidos",
-    "profiles-and-vehicles": "Perfiles y Vehículos",
+    "profiles-and-vehicles": "Mis Productores",
     "quality-control": "Control de Calidad",
     "logistics-monitoring": "Logística y Monitoreo",
     "payment-management": "Gestión de Pagos",
@@ -128,7 +128,23 @@
     "chat_title": "Chat de Soporte",
     "open_chat": "Abrir Chat",
     "chat_msg": "Hola, ¿en qué podemos ayudarte hoy?",
-    "start_chat": "Iniciar conversación"
+    "start_chat": "Iniciar conversación",
+    "producer_welcome": "Bienvenido de vuelta, {name}",
+    "producer_subtitle": "Resumen operativo de tus fincas y pedidos pendientes para hoy.",
+    "view_my_orders": "Ver Mis Pedidos",
+    "kpi_pending_orders": "Pedidos Pendientes",
+    "kpi_dispatched_months": "Lotes Despachados (Mes)",
+    "kpi_quality_appr": "Aprobación de Calidad",
+    "kpi_active_alerts": "Alertas Activas",
+    "actions_required": "Acciones Requeridas",
+    "table_batch_id": "ID LOTE",
+    "table_destination": "CLIENTE DESTINO",
+    "table_status": "ESTADO",
+    "table_action": "ACCIÓN",
+    "go_to_order": "Ir al pedido",
+    "everything_up_to_date": "¡Todo al día! No tienes pedidos urgentes por procesar.",
+    "crop_distribution": "Distribución de Cultivos",
+    "hectares": "Hectáreas"
   },
   "orders": {
     "breadcrumb": {
@@ -166,7 +182,7 @@
       "subtitle": "Frutas seleccionadas para este despacho:",
       "close": "Cerrar"
     },
-    "delete_confirm": {
+    "detail_confirm": {
       "title": "Eliminar Pedido",
       "message": "¿Estás seguro de que deseas eliminar el pedido {id}?",
       "warning": "Esta acción no se puede deshacer.",
@@ -201,7 +217,33 @@
     }
   },
   "catalog": {
-    "title": "Catálogo de Productos"
+    "title": "Catálogo de Productos",
+    "subtitle": "Productos disponibles en distribución",
+    "products": "producto",
+    "products_pl": "productos",
+    "continue": "Continuar",
+    "add": "Agregar al pedido",
+    "confirm": "Confirmar Pedido",
+    "cancel": "Cancelar",
+    "pay": "Pagar y Confirmar",
+    "seasonal": "Temporada",
+    "address": "Dirección de Entrega",
+    "date": "Fecha de Entrega Deseada",
+    "total": "Total"
+  },
+  "quality_report": {
+    "title": "Reportes de Calidad",
+    "subtitle": "Revisa el estado y calidad de tus cargas recientes",
+    "loading": "Consultando base de datos...",
+    "empty_title": "No hay reportes disponibles",
+    "empty_desc": "Aún no has documentado ninguna inspección de calidad.",
+    "optimal": "ÓPTIMO",
+    "with_observations": "CON OBSERVACIONES",
+    "visual_inspection": "Inspección Visual",
+    "defects": "Defectos (Merma)",
+    "temperature": "Temperatura",
+    "humidity": "Humedad",
+    "download_pdf": "Descargar PDF"
   },
   "track": {
     "title": "Seguimiento del Pedido"

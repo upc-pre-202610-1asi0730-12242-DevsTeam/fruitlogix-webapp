@@ -149,7 +149,7 @@ export default {
 .auth-page {
   position: relative;
   min-height: 100vh;
-  width: 100vw;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;

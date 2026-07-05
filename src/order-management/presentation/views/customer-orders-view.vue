@@ -42,14 +42,24 @@
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
             <h3 class="section-title" style="margin-bottom: 0;">{{ t('orders.detail', 'Detalle del Pedido') }}</h3>
 
-            <button
-                v-if="selectedOrder.status !== 'Pending'"
-                class="btn-primary"
-                @click="goToLiveTracking(selectedOrder.idRaw)"
-                style="background-color: #c9e265; color: #122216; font-weight: bold; border-radius: 8px; padding: 0.5rem 1rem;"
-            >
-              <i class="pi pi-map-marker" style="margin-right: 0.5rem;"></i> Rastrear en Vivo
-            </button>
+            <div style="display: flex; gap: 10px;">
+              <button
+                  v-if="selectedOrder.status === 'InTransit'"
+                  class="btn-primary"
+                  @click="goToLiveTracking(selectedOrder.idRaw)"
+                  style="background-color: #c9e265; color: #122216; font-weight: bold; border-radius: 8px; padding: 0.5rem 1rem;"
+              >
+                <i class="pi pi-map-marker" style="margin-right: 0.5rem;"></i> Rastrear Camión
+              </button>
+              <button
+                  v-if="selectedOrder.status === 'Delivered'"
+                  class="btn-primary"
+                  @click="router.push('/customer/reception?id=' + selectedOrder.idRaw)"
+                  style="background-color: #1bb37e; color: white; font-weight: bold; border-radius: 8px; padding: 0.5rem 1rem;"
+              >
+                <i class="pi pi-check-square" style="margin-right: 0.5rem;"></i> Confirmar Recepción
+              </button>
+            </div>
           </div>
 
           <div class="detail-grid">
@@ -157,7 +167,6 @@ onMounted(() => {
 
         liveOrders.value = rawOrders.map(order => {
           const backendItems = order.items || order.orderItems || [];
-
           const mappedFruits = backendItems.map(item => ({
             id: item.id || item.productId || Math.random(),
             name: item.name || item.productName || 'Fruta',
@@ -165,20 +174,28 @@ onMounted(() => {
             subtotal: item.unitPrice ? (item.quantityKg * item.unitPrice) : 0
           }));
 
+          // 🌟 MAGIA: Leemos el estado del navegador (Productor o Distribuidor)
+          const localStatus = localStorage.getItem(`order_status_${order.id}`);
+          let finalStatus = order.status;
+
+          if (localStatus === 'READY') finalStatus = 'InPreparation'; // Productor inspeccionó
+          if (localStatus === 'IN_TRANSIT') finalStatus = 'InTransit'; // Productor despachó
+          if (localStatus === 'DELIVERED') finalStatus = 'Delivered';  // Camión llegó
+
           return {
             id: `#ORD-REAL-${order.id}`,
-            idRaw: order.id, // Guardamos el ID real de C# para pasarlo al router
+            idRaw: order.id,
             createdAt: order.createdAt || new Date().toISOString(),
-            status: order.status,
+            status: finalStatus, // Usamos el estado sincronizado
             paymentStatus: 'PAGADO',
             totalAmount: Number(order.totalAmount || order.total || 0),
             selectedFruits: mappedFruits,
             trackingSteps: [
-              { id: 1, label: 'Pedido Recibido', description: 'El cliente ha confirmado el pedido.', status: 'done', actor: 'distributor', time: '09:00' },
-              { id: 2, label: 'Asignando Productor', description: 'Buscando el mejor productor disponible.', status: order.status === 'Pending' ? 'active' : 'done', actor: 'distributor' },
-              { id: 3, label: 'En Preparación', description: 'El productor está empacando las frutas.', status: order.status === 'InPreparation' ? 'active' : (['InTransit', 'Delivered'].includes(order.status) ? 'done' : 'pending'), actor: 'producer' },
-              { id: 4, label: 'En Ruta de Distribución', description: 'El cargamento va hacia el almacén central.', status: order.status === 'InTransit' ? 'active' : (order.status === 'Delivered' ? 'done' : 'pending'), actor: 'distributor' },
-              { id: 5, label: 'Entregado', description: 'El pedido llegó a su destino final.', status: order.status === 'Delivered' ? 'active' : 'pending', actor: 'distributor' }
+              { id: 1, label: 'Pedido Recibido', status: 'done', actor: 'distributor' },
+              { id: 2, label: 'Asignando Productor', status: finalStatus === 'Pending' ? 'active' : 'done', actor: 'distributor' },
+              { id: 3, label: 'En Preparación', status: finalStatus === 'InPreparation' ? 'active' : (['InTransit', 'Delivered'].includes(finalStatus) ? 'done' : 'pending'), actor: 'producer' },
+              { id: 4, label: 'En Ruta de Distribución', status: finalStatus === 'InTransit' ? 'active' : (finalStatus === 'Delivered' ? 'done' : 'pending'), actor: 'distributor' },
+              { id: 5, label: 'Entregado', status: finalStatus === 'Delivered' ? 'active' : 'pending', actor: 'distributor' }
             ]
           };
         });
@@ -187,9 +204,7 @@ onMounted(() => {
           selectedOrderId.value = liveOrders.value[0].id;
         }
       })
-      .catch(error => {
-        console.error("Error crítico al recuperar las órdenes:", error);
-      });
+      .catch(error => console.error("Error crítico:", error));
 });
 
 const selectedOrder = computed(() => liveOrders.value.find(o => o.id === selectedOrderId.value));

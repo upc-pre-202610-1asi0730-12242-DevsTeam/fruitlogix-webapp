@@ -6,7 +6,6 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { ProfilesAndVehiclesApi } from '../infrastructure/profiles-and-vehicles-api.js';
-import { ProducerAssembler } from '../infrastructure/producer.assembler.js';
 import { User } from '../domain/model/user.entity.js';
 import { Driver } from '../domain/model/driver.entity.js';
 import { Vehicle } from '../domain/model/vehicle.entity.js';
@@ -48,11 +47,13 @@ const useProfilesAndVehiclesStore = defineStore('profiles-and-vehicles', () => {
     }
 
     // ─── Producers ──────────────────────────────
+    // ─── Producers ──────────────────────────────
     async function fetchProducers() {
         isLoading.value = true;
         try {
             const r = await api.getProducers();
-            producers.value = ProducerAssembler.toEntities(r.data);
+            // 🌟 Tomamos la data directa de Render
+            producers.value = r.data || [];
         } catch (e) {
             console.error('[profiles-and-vehicles.store]', e);
             errors.value.push(e);
@@ -68,7 +69,7 @@ const useProfilesAndVehiclesStore = defineStore('profiles-and-vehicles', () => {
     async function addProducer(producerData) {
         try {
             const r = await api.createProducer(producerData);
-            producers.value.push(ProducerAssembler.toEntity(r.data));
+            producers.value.push(r.data);
         } catch (e) { console.error('[profiles-and-vehicles.store]', e); errors.value.push(e); }
     }
 
@@ -76,7 +77,7 @@ const useProfilesAndVehiclesStore = defineStore('profiles-and-vehicles', () => {
         try {
             const r = await api.updateProducer(id, producerData);
             const idx = producers.value.findIndex(p => String(p.id) === String(id));
-            if (idx !== -1) producers.value[idx] = ProducerAssembler.toEntity(r.data);
+            if (idx !== -1) producers.value[idx] = r.data;
         } catch (e) { console.error('[profiles-and-vehicles.store]', e); errors.value.push(e); }
     }
 

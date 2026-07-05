@@ -48,6 +48,13 @@ const routes = [
     { path: '/login', name: 'login', component: loginView, meta: { titleKey: 'pages.login', requiresAuth: false } },
     { path: '/register', name: 'register', component: registerView, meta: { titleKey: 'pages.register', requiresAuth: false } },
 
+    {
+        path: '/checkout',
+        name: 'Checkout',
+        component: () => import('./payment-management/presentation/views/checkout.view.vue'),
+        meta: { requiresAuth: true }
+    },
+
     // 2. Rutas Privadas — Distribuidor / Admin
     { path: '/dashboard', name: 'dashboard', component: dashboardView, meta: { titleKey: 'pages.dashboard', requiresAuth: true } },
     {
@@ -138,6 +145,12 @@ const routes = [
                 name: 'producer-chat',
                 component: () => import('./chat/presentation/views/producer-chat-view.vue'),
                 meta: { title: 'Mensajes Logísticos' }
+            },
+            {
+                path: '/producer/dashboard',
+                name: 'producer-dashboard',
+                component: () => import('./dashboard/presentation/views/producer-dashboard.vue'),
+                meta: { requiresAuth: true, role: 'producer' }
             }
         ]
     },
@@ -192,14 +205,13 @@ router.beforeEach((to, from, next) => {
         return next(getHomeRoute(userRole));
     }
 
-    // Regla D: Cliente intenta rutas fuera de /customer → su dashboard
-    // PERMITIMOS EL ACCESO A /chat SI ES PARTE DE SU RUTA
-    if (isAuthenticated && userRole === 'customer' && !to.path.startsWith('/customer') && to.meta.requiresAuth && to.name !== 'not-found') {
+    // Regla D: Cliente intenta rutas fuera de /customer → su dashboard (Permitimos /checkout)
+    if (isAuthenticated && userRole === 'customer' && !to.path.startsWith('/customer') && to.path !== '/checkout' && to.meta.requiresAuth && to.name !== 'not-found') {
         return next('/customer/dashboard');
     }
 
-    // Regla E: Productor intenta rutas fuera de /producer → su dashboard
-    if (isAuthenticated && userRole === 'producer' && !to.path.startsWith('/producer') && to.meta.requiresAuth && to.name !== 'not-found') {
+    // Regla E: Productor intenta rutas fuera de /producer → su dashboard (Permitimos /checkout)
+    if (isAuthenticated && userRole === 'producer' && !to.path.startsWith('/producer') && to.path !== '/checkout' && to.meta.requiresAuth && to.name !== 'not-found') {
         return next('/producer/mis-pedidos');
     }
 
